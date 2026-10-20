@@ -65,3 +65,9 @@ Hair can be one colour, split left and right, or ombre. The rules live in `src/r
 - Four regions (front, left, right, back), six lengths each; lengths blend smoothly between regions.
 - Long front hair is swept to the sides so Isla's eyes, brows and cheeks are never covered.
 - Short front lengths are fringes that stop above the eyebrows.
+
+## Cutting
+- Six lengths, longest first: Long, Shoulder, Bob, Short, Shorter, Crop. Each of the four regions (front, left, right, back) has its own length, and the reach blends smoothly round the head between region centres, so seams never step.
+- **Left and Right regions are as the player sees Isla from the front** (Left = screen-left of the front view, a negative azimuth), matching the colour chooser. The mapping lives in `src/cut.ts`.
+- A shorter cut plays the scissors: they arrive, snip twice (`playSnip`), then the hair drops and clippings fall in the tip colour. A longer cut grows with a soft chime (`playGrow`). Reduced motion skips the animation.
+- Sound is synthesised with Web Audio in `src/audio.ts`; nothing is loaded and mute silences it all.

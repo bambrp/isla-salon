@@ -6,12 +6,15 @@ export type { ColourMode, HairColour };
 /**
  * Left and right in the colour chooser are as the player sees Isla from the front: Left is the screen-left
  * half of the picture. The 'left' and 'right' views are named for Isla's own sides: the 'left' view shows
- * her left side, so her face points to the screen-left in it. Cutting regions are decided in Stage 3.
+ * her left side, so her face points to the screen-left in it. Cutting regions follow the colour chooser:
+ * Left and Right are as seen from the front (see cut.ts).
  */
 export type Stage = 'wash' | 'colour' | 'cut' | 'style';
 export type View = 'front' | 'left' | 'back' | 'right';
 export type Length = 'back' | 'shoulders' | 'bob' | 'short1' | 'short2' | 'short3';
 export type Region = 'front' | 'left' | 'right' | 'back';
+/** What the cutting stage is about to change: one region, or the whole head. */
+export type CutTarget = Region | 'all';
 export type Shampoo = 'mint' | 'citrus' | 'tropical';
 
 export const STAGES: readonly Stage[] = ['wash', 'colour', 'cut', 'style'];
@@ -30,6 +33,8 @@ export interface SalonState {
   character: CharacterDef;
   stage: Stage;
   view: View;
+  /** The region the length buttons change in the cutting stage. */
+  cutTarget: CutTarget;
   hair: {
     wetness: number;
     cleanliness: number;
@@ -57,6 +62,7 @@ export function initialState(character: CharacterDef = ISLA): SalonState {
     character,
     stage: 'wash',
     view: 'front',
+    cutTarget: 'all',
     hair: {
       wetness: 0,
       cleanliness: 0.4,
@@ -107,6 +113,22 @@ export function setColourMode(mode: ColourMode): void {
 /** Set one colour slot: a is the single colour, the Left half (as seen from the front), or the roots; b is the Right half, or the tips. */
 export function setColour(slot: 'a' | 'b', hex: string): void {
   updateColour((c) => withColour(c, slot, hex));
+}
+
+/** Choose which part of the head the length buttons change. */
+export function selectCutTarget(cutTarget: CutTarget): void {
+  salon.update((s) => (s.cutTarget === cutTarget ? s : { ...s, cutTarget }));
+}
+
+/** Cut (or let grow) the chosen region, or the whole head, to a length. Does nothing if nothing would change. */
+export function setLength(target: CutTarget, length: Length): void {
+  salon.update((s) => {
+    const regions: Region[] = target === 'all' ? ['front', 'left', 'right', 'back'] : [target];
+    if (regions.every((r) => s.hair.length[r] === length)) return s;
+    const next = { ...s.hair.length };
+    for (const r of regions) next[r] = length;
+    return { ...s, hair: { ...s.hair, length: next } };
+  });
 }
 
 export function toggleMute(): void {

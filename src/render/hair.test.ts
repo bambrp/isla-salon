@@ -91,8 +91,8 @@ describe('buildLocks', () => {
   });
 
   it('blends region lengths smoothly with no step bigger than a lock spacing allows', () => {
-    // A bob at the back next to a shoulder-length left side: reach should change monotonically between them.
-    const lengths: Lengths = { front: 'bob', left: 'shoulders', back: 'bob', right: 'bob' };
+    // A bob at the back next to a shoulder-length right side (the screen-right, at +90 degrees): reach should change monotonically between them.
+    const lengths: Lengths = { front: 'bob', right: 'shoulders', back: 'bob', left: 'bob' };
     let prev = reachAt(90 * DEG, lengths);
     for (let deg = 91; deg <= 180; deg++) {
       const r = reachAt(deg * DEG, lengths);
@@ -103,7 +103,8 @@ describe('buildLocks', () => {
   });
 
   it('reads each region length at its own compass point', () => {
-    const lengths: Lengths = { front: 'short1', left: 'back', back: 'bob', right: 'short3' };
+    // Right is the screen-right of the front view, which is +90 degrees; Left is -90.
+    const lengths: Lengths = { front: 'short1', right: 'back', back: 'bob', left: 'short3' };
     expect(reachAt(90 * DEG, lengths)).toBeCloseTo(478 - HEAD.cy);
     expect(reachAt(180 * DEG, lengths)).toBeCloseTo(336 - HEAD.cy);
     expect(reachAt(-90 * DEG, lengths)).toBeCloseTo(232 - HEAD.cy);

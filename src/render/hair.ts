@@ -97,15 +97,16 @@ function wrap(a: number): number {
 
 /**
  * Where hair ends at a given azimuth, relative to the head centre. Region lengths sit at the compass points
- * (front 0, left +90, back 180, right -90) and blend smoothly between them, so a bob next to a shoulder-length
- * cut grades gently instead of stepping.
+ * (front 0, back 180, and the sides at +90 and -90) and blend smoothly between them, so a bob next to a shoulder-length
+ * cut grades gently instead of stepping. Regions are named as the player sees Isla from the front, so Right is
+ * the screen-right side, which is her own left at +90, and Left is at -90.
  */
 export function reachAt(az: number, lengths: Lengths): number {
   const centres = [
     FRONT_REACH[lengths.front],
-    SIDE_REACH[lengths.left],
-    BACK_REACH[lengths.back],
     SIDE_REACH[lengths.right],
+    BACK_REACH[lengths.back],
+    SIDE_REACH[lengths.left],
   ];
   const t = wrap(az) / (Math.PI / 2);
   const q = Math.min(3, Math.floor(t));

@@ -8,8 +8,8 @@ Based on `intent.md`. Decisions below were confirmed by the owner.
 |---|---|
 | 0 Foundations | Done and approved |
 | 1 Procedural character, four views, backdrops | Done and approved |
-| 2 Colouring | **Revised after feedback, awaiting your approval** |
-| 3 Cutting | Next |
+| 2 Colouring | Done (feedback applied; you asked to move on) |
+| 3 Cutting | **Built, awaiting your feedback** |
 | 4 to 7 | Not started |
 
 Stage 2 notes (decisions made while building):
@@ -19,6 +19,15 @@ Stage 2 notes (decisions made while building):
 - Ombre is drawn in flat bands to keep the cel-shaded look, measured along each lock so both colours show at every length. Blends go round the hue circle (blonde to purple passes through orange and pink, not grey).
 - Feedback applied: Left/Right labelled as the player sees them, ombre unchanged, and every colour change fades in over one second (instant with reduced motion).
 - Checked by measuring the rendered pixels for every length and view (72 cases: split on the correct side, ombre running roots to tips, single staying single), a frame-stepped check of the one-second fade, plus a 60-point test of the chooser driven by touch on phone-sized screens.
+
+Stage 3 notes (decisions made while building):
+- Cutting has a region row (All, Front, Left, Right, Back) and six length buttons (Long, Shoulder, Bob, Short, Shorter, Crop), each with a little head showing the length. Tapping her head or hair also picks the region. Every button is at least 44px.
+- **Left and right regions are as you see Isla from the front**, the same as the colour chooser (my choice, as you asked for consistency in Stage 2; easy to flip). The 'left' and 'right' views still name Isla's own sides, so the left view shows the Right region.
+- Pressing a length cuts at once in the data, then scissors snip twice and the hair drops, with clippings in the hair's tip colour falling off the cut. Going longer needs no scissors: it grows with a soft chime. Reduced motion skips the animation. Mashing buttons ends on the last length.
+- Sound is made with Web Audio (no files): a snip and a grow chime, both respecting the mute button.
+- A white dot marks the end of each visible lock in the chosen region, so you can see what you are about to cut. If the region faces away, the panel says to turn Isla round.
+- Seams between regions already blend smoothly (the reach grades between region lengths), so mixed cuts such as a long Left with a cropped Right read as one haircut.
+- Checked in a real browser: controls, tap-to-select in every view, the snip stepped through by exact time (hair intact until the second snip, gone after), reduced motion, growing, and button mashing; plus a contact sheet of mixed cuts from all four views.
 
 Stage 1 notes (decisions made while building):
 - Hair is 24 locks hanging from the scalp, projected for any view angle; the same model will carry colour, curl and product later.

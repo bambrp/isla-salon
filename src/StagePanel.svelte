@@ -1,18 +1,14 @@
 <script lang="ts">
   import { salon, type Stage } from './state';
   import ColourPanel from './ColourPanel.svelte';
+  import CutPanel from './CutPanel.svelte';
 
-  // Washing, cutting and styling are still non-functional shells; each later stage replaces its shell with real controls.
-  const SHELLS: Record<Exclude<Stage, 'colour'>, { title: string; blurb: string; controls: string[] }> = {
+  // Washing and styling are still non-functional shells; each later stage replaces its shell with real controls.
+  const SHELLS: Record<Exclude<Stage, 'colour' | 'cut'>, { title: string; blurb: string; controls: string[] }> = {
     wash: {
       title: 'Washing',
       blurb: 'Water, shampoo and conditioner controls arrive in Stage 4.',
       controls: ['Temperature', 'Pressure', 'Mint', 'Citrus', 'Tropical', 'Conditioner'],
-    },
-    cut: {
-      title: 'Cutting',
-      blurb: 'Front, sides and back lengths arrive in Stage 3.',
-      controls: ['Front', 'Left', 'Right', 'Back'],
     },
     style: {
       title: 'Styling',
@@ -24,7 +20,7 @@
   const LABELS: Record<Stage, string> = { wash: 'Washing', colour: 'Colouring', cut: 'Cutting', style: 'Styling' };
 
   $: stage = $salon.stage;
-  $: shell = stage === 'colour' ? undefined : SHELLS[stage];
+  $: shell = stage === 'colour' || stage === 'cut' ? undefined : SHELLS[stage];
 </script>
 
 <section class="panel" aria-label="{LABELS[stage]} controls">
@@ -38,6 +34,8 @@
         {/each}
       </div>
     </div>
+  {:else if stage === 'cut'}
+    <CutPanel />
   {:else}
     <ColourPanel />
   {/if}

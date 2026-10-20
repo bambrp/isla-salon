@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { salon, setStage, rotateView, toggleMute, STAGES, type Stage } from './state';
+  import { salon, setStage, rotateView, toggleMute, selectCutTarget, STAGES, type Stage } from './state';
   import { createScene, type SceneHandle } from './render/scene';
   import StagePanel from './StagePanel.svelte';
 
@@ -32,6 +32,13 @@
 
   $: scene?.render($salon);
 
+  // In the cutting stage, tapping her head or hair picks the region to cut.
+  function tapHead(e: MouseEvent): void {
+    if ($salon.stage !== 'cut') return;
+    const region = scene?.regionAt(e.clientX, e.clientY);
+    if (region) selectCutTarget(region);
+  }
+
   const viewLabel: Record<string, string> = {
     front: 'front',
     left: 'left side',
@@ -56,7 +63,15 @@
   </nav>
 
   <section class="stage-area">
-    <div class="canvas-host" bind:this={host} role="img" aria-label="Isla, seen from the {viewLabel[$salon.view]}"></div>
+    <!-- Tapping the picture is a shortcut for the region buttons, which are the accessible way to choose. -->
+    <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_noninteractive_element_interactions -->
+    <div
+      class="canvas-host"
+      bind:this={host}
+      on:click={tapHead}
+      role="img"
+      aria-label="Isla, seen from the {viewLabel[$salon.view]}"
+    ></div>
 
     <div class="tools">
       <button class="round" on:click={rotateView} aria-label="Rotate view. Currently showing the {viewLabel[$salon.view]}">
