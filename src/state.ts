@@ -1,7 +1,8 @@
 import { writable } from 'svelte/store';
 import { withColour, withMode, type ColourMode, type HairColour } from './render/colour';
+import { sameLevels, type Applying, type Product, type Shampoo, type WashLevels } from './render/wash';
 
-export type { ColourMode, HairColour };
+export type { Applying, ColourMode, HairColour, Product, Shampoo, WashLevels };
 
 /**
  * Left and right in the colour chooser are as the player sees Isla from the front: Left is the screen-left
@@ -15,7 +16,6 @@ export type Length = 'back' | 'shoulders' | 'bob' | 'short1' | 'short2' | 'short
 export type Region = 'front' | 'left' | 'right' | 'back';
 /** What the cutting stage is about to change: one region, or the whole head. */
 export type CutTarget = Region | 'all';
-export type Shampoo = 'mint' | 'citrus' | 'tropical';
 
 export const STAGES: readonly Stage[] = ['wash', 'colour', 'cut', 'style'];
 export const VIEWS: readonly View[] = ['front', 'left', 'back', 'right'];
@@ -39,12 +39,16 @@ export interface SalonState {
     wetness: number;
     cleanliness: number;
     conditioned: number;
+    /** Shampoo lather and conditioner cream on the hair right now (0 to 1). */
+    foam: number;
+    cream: number;
     colour: HairColour;
     length: Record<Region, Length>;
     curl: 0 | 1 | 2 | 3;
     product: 'none' | 'spiky' | 'flat';
   };
-  wash: { temperature: number; pressure: number; shampoo: Shampoo; conditioner: boolean };
+  /** The washing controls: water settings, the product on the shelf that is selected, and what the hold buttons are doing. */
+  wash: { temperature: number; pressure: number; product: Product; applying: Applying };
   audio: { muted: boolean };
 }
 
@@ -67,13 +71,15 @@ export function initialState(character: CharacterDef = ISLA): SalonState {
       wetness: 0,
       cleanliness: 0.4,
       conditioned: 0,
+      foam: 0,
+      cream: 0,
       colour: { mode: 'single', a: character.hair, b: character.hair },
       // Isla's starting cut: a short fringe at the front, shoulder-length everywhere else.
       length: { front: 'short3', left: 'shoulders', right: 'shoulders', back: 'shoulders' },
       curl: 0,
       product: 'none',
     },
-    wash: { temperature: 0.5, pressure: 0.5, shampoo: 'mint', conditioner: false },
+    wash: { temperature: 0.5, pressure: 0.5, product: 'mint', applying: null },
     audio: { muted: false },
   };
 }
@@ -91,7 +97,12 @@ export function sceneFor(stage: Stage): 'sink' | 'mirror' {
 export const salon = writable<SalonState>(initialState());
 
 export function setStage(stage: Stage): void {
-  salon.update((s) => ({ ...s, stage }));
+  // Leaving the sink lets go of the water, so nothing keeps running unseen.
+  salon.update((s) => ({
+    ...s,
+    stage,
+    wash: stage === 'wash' || s.wash.applying === null ? s.wash : { ...s.wash, applying: null },
+  }));
 }
 
 export function rotateView(): void {
@@ -129,6 +140,56 @@ export function setLength(target: CutTarget, length: Length): void {
     for (const r of regions) next[r] = length;
     return { ...s, hair: { ...s.hair, length: next } };
   });
+}
+
+export function setTemperature(temperature: number): void {
+  const t = Math.min(1, Math.max(0, temperature));
+  salon.update((s) => (s.wash.temperature === t ? s : { ...s, wash: { ...s.wash, temperature: t } }));
+}
+
+export function setPressure(pressure: number): void {
+  const p = Math.min(1, Math.max(0, pressure));
+  salon.update((s) => (s.wash.pressure === p ? s : { ...s, wash: { ...s.wash, pressure: p } }));
+}
+
+/** Pick the product the apply button uses: one of the three shampoos, or the conditioner. */
+export function selectProduct(product: Product): void {
+  salon.update((s) => (s.wash.product === product ? s : { ...s, wash: { ...s.wash, product } }));
+}
+
+/** What the hold buttons are doing: running the water, applying the product, or nothing. */
+export function setApplying(applying: Applying): void {
+  salon.update((s) => (s.wash.applying === applying ? s : { ...s, wash: { ...s.wash, applying } }));
+}
+
+/** The hair as the washing simulation left it. */
+export function washLevels(s: SalonState): WashLevels {
+  return {
+    wet: s.hair.wetness,
+    foam: s.hair.foam,
+    cream: s.hair.cream,
+    clean: s.hair.cleanliness,
+    conditioned: s.hair.conditioned,
+  };
+}
+
+/** Store the hair's washing state, so the cut, colour and style stages see a hair that has been washed. */
+export function commitWash(levels: WashLevels): void {
+  salon.update((s) =>
+    sameLevels(washLevels(s), levels)
+      ? s
+      : {
+          ...s,
+          hair: {
+            ...s.hair,
+            wetness: levels.wet,
+            foam: levels.foam,
+            cream: levels.cream,
+            cleanliness: levels.clean,
+            conditioned: levels.conditioned,
+          },
+        },
+  );
 }
 
 export function toggleMute(): void {

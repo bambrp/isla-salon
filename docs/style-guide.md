@@ -71,3 +71,9 @@ Hair can be one colour, split left and right, or ombre. The rules live in `src/r
 - **Left and Right regions are as the player sees Isla from the front** (Left = screen-left of the front view, a negative azimuth), matching the colour chooser. The mapping lives in `src/cut.ts`.
 - A shorter cut plays the scissors: they arrive, snip twice (`playSnip`), then the hair drops and clippings fall in the tip colour. A longer cut grows with a soft chime (`playGrow`). Reduced motion skips the animation.
 - Sound is synthesised with Web Audio in `src/audio.ts`; nothing is loaded and mute silences it all.
+
+## Washing
+- Sink scene: tiled wall, handheld sprayer aimed at her crown, a temperature dial, shampoos and conditioner on a wall shelf, a towel shelf and plants. The dial and bottles are part of the picture and respond to touch.
+- Each shampoo has its own look (`SCENT` in `washfx.ts`): mint is pale green lather with leaves, citrus warm yellow with droplets, tropical pink with petals. Conditioner is a soft white-lilac cream.
+- Water is tinted by temperature: icy blue with frost when cold, clear when warm, blushed with rising steam when hot. Pressure changes the number, speed, width and fan of the streaks.
+- Clean, silky, rinsed hair sparkles. All washing sound is synthesised in `src/audio.ts` and follows mute.

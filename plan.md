@@ -9,8 +9,9 @@ Based on `intent.md`. Decisions below were confirmed by the owner.
 | 0 Foundations | Done and approved |
 | 1 Procedural character, four views, backdrops | Done and approved |
 | 2 Colouring | Done (feedback applied; you asked to move on) |
-| 3 Cutting | **Built, awaiting your feedback** |
-| 4 to 7 | Not started |
+| 3 Cutting | Done (you asked to move on) |
+| 4 Washing | **Built, awaiting your feedback** |
+| 5 to 7 | Not started |
 
 Stage 2 notes (decisions made while building):
 - Colouring has three modes: one colour, left and right (as you see Isla from the front: Left is the screen-left), and ombre (roots to tips).
@@ -28,6 +29,16 @@ Stage 3 notes (decisions made while building):
 - A white dot marks the end of each visible lock in the chosen region, so you can see what you are about to cut. If the region faces away, the panel says to turn Isla round.
 - Seams between regions already blend smoothly (the reach grades between region lengths), so mixed cuts such as a long Left with a cropped Right read as one haircut.
 - Checked in a real browser: controls, tap-to-select in every view, the snip stepped through by exact time (hair intact until the second snip, gone after), reduced motion, growing, and button mashing; plus a contact sheet of mixed cuts from all four views.
+
+Stage 4 notes (what is built):
+- Washing has a Temperature slider (Cold, Warm, Hot), a Pressure slider (Gentle, Medium, Strong), a product row (Mint, Citrus, Tropical, Conditioner) and two hold buttons: "Hold for water" and "Hold to apply" the chosen product. Every control is at least 44px.
+- The sink scene is interactive too: tap a bottle on the wall shelf to choose it, or press the wall dial and drag up for hotter, down for colder.
+- Holding uses Pointer Events with capture, so sliding off the button keeps the press; a cancelled touch, the long-press menu, losing focus, hiding the page or leaving the stage all let go. Space and Enter work for keyboards.
+- Hair responds in a simple model: water soaks it (faster under higher pressure) and rinses lather and cream away; shampoo builds lather, quicker on wet hair, and cleans; conditioner builds cream and silkiness, which rinsing keeps. Clean, silky, rinsed hair sparkles.
+- Animations: a water stream (more streaks, faster and wider with pressure), chill and frost when cold, steam when hot, splashes and drips, lather bubble by bubble in a colour of its own for each shampoo (mint green with leaves, citrus yellow with droplets, tropical pink with petals), and a soft cream for the conditioner.
+- Sound (Web Audio, no files): running water that follows the pressure, fizzing foam and a soft conditioner bubble, all muted by the mute button.
+- The washed state (wet, clean, silky) is saved with the hair, so later stages see it.
+- Checked in a real browser: controls, holds by mouse, keyboard and cancelled touch, a full soak, lather for each shampoo, rinse, conditioner, rinse and sparkle, both temperature controls, the dial, bottle taps, and the water stopping when you leave the stage. The three lathers measure as three different colours.
 
 Stage 1 notes (decisions made while building):
 - Hair is 24 locks hanging from the scalp, projected for any view angle; the same model will carry colour, curl and product later.

@@ -1,7 +1,7 @@
 import { Application, Container, Graphics } from 'pixi.js';
 import gsap from 'gsap';
-import { VIEWS, sceneFor, type Region, type SalonState } from '../state';
-import { playGrow, playSnip } from '../audio';
+import { VIEWS, commitWash, sceneFor, washLevels, type Region, type SalonState } from '../state';
+import { playGrow, playSnip, updateWashSound, type WashSound } from '../audio';
 import { REGION_AZIMUTH, changedRegions, isShorter, regionOfAzimuth } from '../cut';
 import { drawBackdrop } from './backdrop';
 import { drawCharacter } from './character';
@@ -9,13 +9,21 @@ import { COLOUR_FADE_SECONDS, ColourFade } from './colourFade';
 import { HEAD, project, silhouetteHalfWidth } from './geometry';
 import { buildLocks, reachAt, splitLocks, type Lock, type Lengths } from './hair';
 import { CLIPPING_LIFE, drawClippings, drawScissors, type Clipping } from './scissors';
-import { INK } from './style';
+import { INK, shade } from './style';
+import { onDial, productAt } from './sinkLayout';
+import { isShampoo, isShiny, sameLevels, stepWash, temperatureBand, type Product, type WashLevels } from './wash';
+import { WashFx, foamLayout, type Bubble, type FxContext } from './washfx';
+import type { HairPaint } from './colour';
 
 export interface SceneHandle {
   /** Redraw the scene for the given state. Cheap enough to call on every state change. */
   render(state: SalonState): void;
   /** The region of the head at a point on the page (client coordinates), or undefined if the point isn't on her head or hair. */
   regionAt(clientX: number, clientY: number): Region | undefined;
+  /** What a press at a page point lands on in the sink scene: the temperature dial, a bottle on the shelf, or nothing. */
+  washHit(clientX: number, clientY: number): { kind: 'dial' } | { kind: 'product'; product: Product } | undefined;
+  /** Show or hide the temperature scale while a finger is dragging the dial. */
+  setDragging(on: boolean): void;
   destroy(): void;
 }
 
@@ -60,7 +68,8 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
   const character = new Graphics();
   const guide = new Graphics();
   const fx = new Graphics();
-  world.addChild(backdrop, character, guide, fx);
+  const washG = new Graphics();
+  world.addChild(backdrop, character, guide, washG, fx);
   app.stage.addChild(world);
 
   let state: SalonState | undefined;
@@ -74,6 +83,16 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
   let shown: Lengths | undefined;
   let snip: gsap.core.Timeline | undefined;
   let pendingCut: Lengths | undefined;
+
+  // The washing: the hair's wet, lather and cream levels, the particles, and the clock that runs them.
+  const washFx = new WashFx();
+  let levels: WashLevels = { wet: 0, foam: 0, cream: 0, clean: 0.4, conditioned: 0 };
+  let lastCommitted: WashLevels = levels;
+  let bubbles: Bubble[] = [];
+  let tickerOn = false;
+  let sinceCommit = 0;
+  let dragging = false;
+  let wasApplying = false;
 
   // The scissors and the clipped hair. Both are drawn from a few numbers that the animation tweens.
   const scissors = { x: 0, y: 0, angle: 0, open: 0, alpha: 0 };
@@ -101,10 +120,111 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
   function draw(): void {
     if (destroyed || !state || !fade) return;
     paintNow = fade.paint();
-    drawCharacter(character, state, turn.phi, locks, paintNow);
+    // Wet hair is darker; it only shows at the sink, as she is towelled off before the other stages.
+    const wet = state.stage === 'wash' ? levels.wet : 0;
+    drawCharacter(character, state, turn.phi, locks, wet > 0.005 ? dim(paintNow, 1 - 0.24 * wet) : paintNow);
     drawGuide();
+    drawWash();
     drawFx();
   }
+
+  /** The same paint, darkened by a factor, for wet hair. */
+  function dim(p: HairPaint, f: number): HairPaint {
+    return {
+      bands: (a0) => p.bands(a0).map((b) => ({ ...b, colour: shade(b.colour, f) })),
+      root: (side) => shade(p.root(side), f),
+      sheen: (az) => shade(p.sheen(az), f),
+    };
+  }
+
+  function fxContext(): FxContext | undefined {
+    if (!state) return undefined;
+    const tips: Array<{ x: number; y: number }> = [];
+    if (levels.wet > 0.3) {
+      for (const p of splitLocks(locks, turn.phi).front) tips.push({ x: p.apex[0], y: p.apex[1] });
+    }
+    return {
+      applying: state.wash.applying,
+      product: state.wash.product,
+      pressure: state.wash.pressure,
+      temperature: state.wash.temperature,
+      levels,
+      phi: turn.phi,
+      tips,
+      bubbles,
+      dragging,
+    };
+  }
+
+  function drawWash(): void {
+    const ctx = fxContext();
+    if (!ctx || !state || state.stage !== 'wash') {
+      washG.clear();
+      character.x = guide.x = washG.x = 0;
+      return;
+    }
+    // Cold water makes her shiver.
+    const cold = ctx.applying === 'water' && temperatureBand(ctx.temperature) === 'cold' && !prefersReducedMotion();
+    const shake = cold ? Math.sin(washFx.time * 55) * 1.3 * (1 - ctx.temperature * 2) : 0;
+    character.x = guide.x = washG.x = Math.max(-1.3, Math.min(1.3, shake));
+    washFx.draw(washG, ctx);
+  }
+
+  function soundFor(next: SalonState): WashSound {
+    if (next.stage !== 'wash') return null;
+    if (next.wash.applying === 'water') return 'water';
+    if (next.wash.applying === 'product') return isShampoo(next.wash.product) ? 'foam' : 'cream';
+    return null;
+  }
+
+  function wantsTicker(): boolean {
+    return !!state && state.stage === 'wash' && (state.wash.applying !== null || washFx.active() || levels.wet > 0.3 || isShiny(levels));
+  }
+
+  function syncTicker(): void {
+    const want = wantsTicker();
+    if (want && !tickerOn) {
+      gsap.ticker.add(tick);
+      tickerOn = true;
+    } else if (!want && tickerOn) {
+      gsap.ticker.remove(tick);
+      tickerOn = false;
+    }
+  }
+
+  function commit(): void {
+    sinceCommit = 0;
+    if (sameLevels(levels, lastCommitted)) return;
+    lastCommitted = levels;
+    commitWash(levels);
+  }
+
+  function tick(_time: number, deltaMs: number): void {
+    if (destroyed || !state) return;
+    // Very long gaps (a slow frame, a stall) are capped so nothing lurches, but the cap is high enough that a slow phone still keeps pace.
+    const dt = Math.min(0.25, Math.max(0, deltaMs / 1000));
+    const before = levels;
+    levels = stepWash(levels, dt, {
+      applying: state.wash.applying,
+      product: state.wash.product,
+      temperature: state.wash.temperature,
+      pressure: state.wash.pressure,
+    });
+    const ctx = fxContext();
+    if (ctx) washFx.update(dt, ctx);
+    updateWashSound(soundFor(state), state.wash.pressure);
+
+    if (Math.abs(levels.wet - before.wet) > 0.004) draw();
+    else drawWash();
+
+    sinceCommit += dt;
+    if (sinceCommit > 0.3) commit();
+    if (!wantsTicker()) {
+      commit();
+      syncTicker();
+    }
+  }
+
 
   /** In the cutting stage, a dot at the end of every visible lock in the chosen region, so you can see what you are about to cut. */
   function drawGuide(): void {
@@ -132,6 +252,7 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
 
   function showCut(lengths: Lengths, seed: number): void {
     locks = buildLocks(lengths, seed);
+    bubbles = foamLayout(lengths, seed);
     shown = { ...lengths };
   }
 
@@ -268,6 +389,18 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
       applyCut(next);
     }
 
+    // The washing levels come from the store whenever something other than this scene changed them.
+    const stored = washLevels(next);
+    if (!sameLevels(stored, lastCommitted)) {
+      levels = stored;
+      lastCommitted = stored;
+    }
+    if (wasApplying && !next.wash.applying) commit();
+    wasApplying = next.wash.applying !== null;
+    if (next.stage !== 'wash') washFx.clear();
+    updateWashSound(soundFor(next), next.wash.pressure);
+    syncTicker();
+
     // The first colour just appears; every change after that fades in. A new change part-way through a fade
     // starts from the colour showing at that moment, so nothing jumps.
     if (!fade) {
@@ -304,12 +437,26 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
   });
   observer.observe(host);
 
-  function regionAt(clientX: number, clientY: number): Region | undefined {
+  /** A point on the page as design-space coordinates, or undefined before the first layout. */
+  function toDesign(clientX: number, clientY: number): { x: number; y: number } | undefined {
     const rect = app.canvas.getBoundingClientRect();
     const scale = world.scale.x;
-    if (!scale || !state) return undefined;
-    const x = (clientX - rect.left - world.x) / scale;
-    const y = (clientY - rect.top - world.y) / scale;
+    if (!scale) return undefined;
+    return { x: (clientX - rect.left - world.x) / scale, y: (clientY - rect.top - world.y) / scale };
+  }
+
+  function washHit(clientX: number, clientY: number): { kind: 'dial' } | { kind: 'product'; product: Product } | undefined {
+    const p = toDesign(clientX, clientY);
+    if (!p || !state || state.stage !== 'wash') return undefined;
+    if (onDial(p.x, p.y)) return { kind: 'dial' };
+    const product = productAt(p.x, p.y);
+    return product ? { kind: 'product', product } : undefined;
+  }
+
+  function regionAt(clientX: number, clientY: number): Region | undefined {
+    const pt = toDesign(clientX, clientY);
+    if (!pt || !state) return undefined;
+    const { x, y } = pt;
 
     // The head and hair: the width of the head at this angle, from just above the crown down to where the hair ends.
     const phi = turn.phi;
@@ -336,9 +483,17 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
   return {
     render,
     regionAt,
+    washHit,
+    setDragging(on: boolean) {
+      dragging = on;
+      drawWash();
+    },
     destroy() {
       if (destroyed) return;
       destroyed = true;
+      if (tickerOn) gsap.ticker.remove(tick);
+      tickerOn = false;
+      updateWashSound(null, 0);
       snip?.kill();
       gsap.killTweensOf(fall);
       gsap.killTweensOf(scissors);

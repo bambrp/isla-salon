@@ -1,6 +1,16 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { salon, setStage, rotateView, toggleMute, selectCutTarget, STAGES, type Stage } from './state';
+  import {
+    salon,
+    setStage,
+    rotateView,
+    toggleMute,
+    selectCutTarget,
+    selectProduct,
+    setTemperature,
+    STAGES,
+    type Stage,
+  } from './state';
   import { createScene, type SceneHandle } from './render/scene';
   import StagePanel from './StagePanel.svelte';
 
@@ -39,6 +49,39 @@
     if (region) selectCutTarget(region);
   }
 
+  // In the washing stage, tap a bottle on the shelf to choose it, or press the wall dial and drag up for hotter, down for colder.
+  let dial: { id: number; startY: number; startTemp: number } | undefined;
+
+  function pressHost(e: PointerEvent): void {
+    if ($salon.stage !== 'wash') return;
+    const hit = scene?.washHit(e.clientX, e.clientY);
+    if (!hit) return;
+    if (hit.kind === 'product') {
+      selectProduct(hit.product);
+      return;
+    }
+    e.preventDefault();
+    try {
+      host.setPointerCapture(e.pointerId);
+    } catch {
+      /* capture is a nicety */
+    }
+    dial = { id: e.pointerId, startY: e.clientY, startTemp: $salon.wash.temperature };
+    scene?.setDragging(true);
+  }
+
+  function dragHost(e: PointerEvent): void {
+    if (!dial || e.pointerId !== dial.id) return;
+    // Dragging up by about half the picture's height goes from cold to hot.
+    setTemperature(dial.startTemp + (dial.startY - e.clientY) / Math.max(120, host.clientHeight * 0.5));
+  }
+
+  function releaseHost(e: PointerEvent): void {
+    if (!dial || e.pointerId !== dial.id) return;
+    dial = undefined;
+    scene?.setDragging(false);
+  }
+
   const viewLabel: Record<string, string> = {
     front: 'front',
     left: 'left side',
@@ -69,6 +112,10 @@
       class="canvas-host"
       bind:this={host}
       on:click={tapHead}
+      on:pointerdown={pressHost}
+      on:pointermove={dragHost}
+      on:pointerup={releaseHost}
+      on:pointercancel={releaseHost}
       role="img"
       aria-label="Isla, seen from the {viewLabel[$salon.view]}"
     ></div>
@@ -151,6 +198,8 @@
   .canvas-host {
     position: absolute;
     inset: 0;
+    /* Dragging the wall dial must not scroll or zoom the page. */
+    touch-action: none;
   }
 
   .tools {

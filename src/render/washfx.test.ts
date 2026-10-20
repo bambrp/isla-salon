@@ -1,0 +1,132 @@
+import { get } from 'svelte/store';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { DEG, HEAD } from './geometry';
+import { FRONT_SECTOR, reachAt, type Lengths } from './hair';
+import { DIAL, SHELF_PRODUCTS, onDial, productAt } from './sinkLayout';
+import { BUBBLE_COUNT, foamLayout } from './washfx';
+import {
+  commitWash,
+  initialState,
+  salon,
+  selectProduct,
+  setApplying,
+  setPressure,
+  setStage,
+  setTemperature,
+  washLevels,
+} from '../state';
+
+const ALL = (l: Lengths['front']): Lengths => ({ front: l, left: l, right: l, back: l });
+
+describe('lather layout', () => {
+  it('is deterministic for a seed and has the same count whatever the cut', () => {
+    expect(foamLayout(ALL('bob'), 6)).toEqual(foamLayout(ALL('bob'), 6));
+    expect(foamLayout(ALL('back'), 6)).toHaveLength(BUBBLE_COUNT);
+    expect(foamLayout(ALL('short3'), 6)).toHaveLength(BUBBLE_COUNT);
+  });
+
+  it('keeps off her face: at the front it only sits above the brows', () => {
+    for (const len of ['back', 'bob', 'short3'] as const) {
+      for (const b of foamLayout(ALL(len), 6)) {
+        if (Math.abs(b.az) < FRONT_SECTOR) expect(b.y).toBeLessThanOrEqual(-40);
+      }
+    }
+  });
+
+  it('stays on the hair: never below where it ends, nor above the crown', () => {
+    const lengths: Lengths = { front: 'short3', left: 'bob', right: 'short2', back: 'shoulders' };
+    for (const b of foamLayout(lengths, 6)) {
+      expect(b.y).toBeGreaterThanOrEqual(-(HEAD.ry + 6));
+      if (Math.abs(b.az) >= FRONT_SECTOR) expect(b.y).toBeLessThanOrEqual(Math.max(reachAt(b.az, lengths) - 12, -HEAD.ry + 8) + 1e-9);
+    }
+  });
+
+  it('builds up bubble by bubble: thresholds cover 0 to 1', () => {
+    const t = foamLayout(ALL('bob'), 6).map((b) => b.threshold);
+    expect(Math.min(...t)).toBeGreaterThanOrEqual(0);
+    expect(Math.max(...t)).toBeLessThan(1.01);
+    expect(t.filter((v) => v < 0.5).length).toBeGreaterThan(BUBBLE_COUNT / 3);
+  });
+
+  it('puts lather on every side of the head', () => {
+    const azs = foamLayout(ALL('shoulders'), 6).map((b) => b.az);
+    expect(azs.some((a) => Math.abs(a) < 45 * DEG)).toBe(true);
+    expect(azs.some((a) => a > 60 * DEG && a < 120 * DEG)).toBe(true);
+    expect(azs.some((a) => a < -60 * DEG && a > -120 * DEG)).toBe(true);
+    expect(azs.some((a) => Math.abs(a) > 150 * DEG)).toBe(true);
+  });
+});
+
+describe('the sink scene', () => {
+  it('picks the bottle under a tap, and nothing elsewhere', () => {
+    for (const [name, b] of Object.entries(SHELF_PRODUCTS)) expect(productAt(b.x, b.baseY - 20)).toBe(name);
+    expect(productAt(200, 250)).toBeUndefined();
+    expect(productAt(SHELF_PRODUCTS.mint.x, SHELF_PRODUCTS.mint.baseY + 40)).toBeUndefined();
+  });
+
+  it('has no overlapping bottle targets', () => {
+    const items = Object.values(SHELF_PRODUCTS);
+    for (const a of items) {
+      for (const b of items) {
+        if (a !== b && a.baseY === b.baseY) expect(Math.abs(a.x - b.x)).toBeGreaterThan(30);
+      }
+    }
+  });
+
+  it('finds the dial with a generous target', () => {
+    expect(onDial(DIAL.x, DIAL.y)).toBe(true);
+    expect(onDial(DIAL.x + 30, DIAL.y)).toBe(true);
+    expect(onDial(DIAL.x + 60, DIAL.y)).toBe(false);
+    expect(onDial(200, 300)).toBe(false);
+  });
+
+  it('keeps the dial clear of the bottles and the head', () => {
+    for (const b of Object.values(SHELF_PRODUCTS)) expect(Math.abs(DIAL.x - b.x)).toBeGreaterThan(100);
+    expect(DIAL.x - 38).toBeGreaterThan(HEAD.cx + HEAD.rx);
+  });
+});
+
+describe('washing controls in the store', () => {
+  beforeEach(() => salon.set(initialState()));
+
+  it('starts at warm, medium, mint, nothing running, hair dry', () => {
+    const s = get(salon);
+    expect(s.wash).toEqual({ temperature: 0.5, pressure: 0.5, product: 'mint', applying: null });
+    expect(washLevels(s)).toEqual({ wet: 0, foam: 0, cream: 0, clean: 0.4, conditioned: 0 });
+  });
+
+  it('keeps the dial and pressure within 0 to 1', () => {
+    setTemperature(3);
+    expect(get(salon).wash.temperature).toBe(1);
+    setTemperature(-2);
+    expect(get(salon).wash.temperature).toBe(0);
+    setPressure(9);
+    expect(get(salon).wash.pressure).toBe(1);
+  });
+
+  it('selects products and ignores repeats', () => {
+    selectProduct('conditioner');
+    const before = get(salon);
+    selectProduct('conditioner');
+    expect(get(salon)).toBe(before);
+    expect(before.wash.product).toBe('conditioner');
+  });
+
+  it('stores the wash levels once and leaves the state alone if they are unchanged', () => {
+    commitWash({ wet: 1, foam: 0.5, cream: 0, clean: 0.7, conditioned: 0.2 });
+    expect(washLevels(get(salon))).toEqual({ wet: 1, foam: 0.5, cream: 0, clean: 0.7, conditioned: 0.2 });
+    const before = get(salon);
+    commitWash(washLevels(before));
+    expect(get(salon)).toBe(before);
+  });
+
+  it('lets go of the water when she leaves the sink', () => {
+    setApplying('water');
+    setStage('colour');
+    expect(get(salon).wash.applying).toBeNull();
+    setStage('wash');
+    setApplying('product');
+    setStage('wash');
+    expect(get(salon).wash.applying).toBe('product');
+  });
+});
