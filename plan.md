@@ -2,6 +2,21 @@
 
 Based on `intent.md`. Decisions below were confirmed by the owner.
 
+## Status
+
+| Stage | State |
+|---|---|
+| 0 Foundations | Done and approved |
+| 1 Procedural character, four views, backdrops | **Built, awaiting your feedback** |
+| 2 Colouring | Next |
+| 3 to 7 | Not started |
+
+Stage 1 notes (decisions made while building):
+- Hair is 24 locks hanging from the scalp, projected for any view angle; the same model will carry colour, curl and product later.
+- Long front hair is swept behind the cheeks so the eyes, brows, cheeks and mouth are never covered (tested for all 1,296 region/length combinations). Short front lengths are fringes that stop above the brows.
+- Short cuts finish lower at the nape than at the temples, so the hairline tapers instead of running level round the head.
+- Style rules are in `docs/style-guide.md`. Opening the app with `?debug` exposes the store for automated checks; normal visitors are unaffected.
+
 ## 1. Product summary
 
 A browser-based, offline-capable, single-player sandbox game simulating a salon visit. A head-and-shoulders character (v1: **Isla, a six-year-old blonde girl**) sits centre screen. A stage switch (Wash / Colour / Cut / Style) changes the control panel. A rotate button cycles four views (front, left, back, right). A camera button downloads a clean image of the character with no UI. Visual style is cel-shaded cartoon with vibrant colours.

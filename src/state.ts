@@ -54,7 +54,8 @@ export function initialState(character: CharacterDef = ISLA): SalonState {
       cleanliness: 0.4,
       conditioned: 0,
       colour: { mode: 'single', a: character.hair, b: character.hair },
-      length: { front: 'shoulders', left: 'shoulders', right: 'shoulders', back: 'shoulders' },
+      // Isla's starting cut: a short fringe at the front, shoulder-length everywhere else.
+      length: { front: 'short3', left: 'shoulders', right: 'shoulders', back: 'shoulders' },
       curl: 0,
       product: 'none',
     },
@@ -62,6 +63,12 @@ export function initialState(character: CharacterDef = ISLA): SalonState {
     audio: { muted: false },
   };
 }
+
+/**
+ * Yaw of each view in degrees. The 'left' view shows the left side of the head (the side that is on the
+ * screen-left in the front view), so the face points to the screen-right in it.
+ */
+export const VIEW_ANGLE: Record<View, number> = { front: 0, left: 90, back: 180, right: 270 };
 
 /** Next view in the rotation order front -> left -> back -> right -> front. */
 export function nextView(view: View): View {

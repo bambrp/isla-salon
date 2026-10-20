@@ -1,7 +1,9 @@
 import { Application, Container, Graphics } from 'pixi.js';
-import { sceneFor, type SalonState } from '../state';
+import gsap from 'gsap';
+import { VIEWS, sceneFor, type SalonState } from '../state';
 import { drawBackdrop } from './backdrop';
 import { drawCharacter } from './character';
+import { buildLocks, type Lock } from './hair';
 
 export interface SceneHandle {
   /** Redraw the scene for the given state. Cheap enough to call on every state change. */
@@ -12,6 +14,17 @@ export interface SceneHandle {
 /** Design space: everything is drawn in a 400 x 500 box, then scaled to fit the host. */
 const DESIGN_W = 400;
 const DESIGN_H = 500;
+
+/** Seconds for the swing between two views. */
+const SWING_SECONDS = 0.55;
+
+function prefersReducedMotion(): boolean {
+  try {
+    return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  } catch {
+    return false;
+  }
+}
 
 export async function createScene(host: HTMLElement): Promise<SceneHandle> {
   const app = new Application();
@@ -31,8 +44,18 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
   world.addChild(backdrop, character);
   app.stage.addChild(world);
 
+  let state: SalonState | undefined;
   let drawnScene: 'sink' | 'mirror' | undefined;
   let destroyed = false;
+
+  // Hair geometry only changes when the cut does, so build it once per cut rather than per frame.
+  let locks: Lock[] = [];
+  let locksKey = '';
+
+  // The view angle is continuous so the swing passes through every angle in between.
+  const turn = { phi: 0 };
+  let targetPhi = 0;
+  let viewIndex = 0;
 
   function layout(): void {
     const w = app.screen.width;
@@ -43,14 +66,42 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
     world.position.set((w - DESIGN_W * scale) / 2, h - DESIGN_H * scale);
   }
 
-  function render(state: SalonState): void {
+  function draw(): void {
+    if (destroyed || !state) return;
+    drawCharacter(character, state, turn.phi, locks);
+  }
+
+  function render(next: SalonState): void {
     if (destroyed) return;
-    const scene = sceneFor(state.stage);
+    state = next;
+
+    const scene = sceneFor(next.stage);
     if (scene !== drawnScene) {
       drawBackdrop(backdrop, scene);
       drawnScene = scene;
     }
-    drawCharacter(character, state);
+
+    const { front, left, right, back } = next.hair.length;
+    const key = `${front}|${left}|${right}|${back}|${next.character.seed}`;
+    if (key !== locksKey) {
+      locks = buildLocks(next.hair.length, next.character.seed);
+      locksKey = key;
+    }
+
+    // Always turn forwards (front, left, back, right, front...) so the swing never unwinds backwards.
+    const index = VIEWS.indexOf(next.view);
+    if (index !== viewIndex) {
+      const steps = (index - viewIndex + VIEWS.length) % VIEWS.length;
+      viewIndex = index;
+      targetPhi += (steps * Math.PI) / 2;
+      gsap.killTweensOf(turn);
+      if (prefersReducedMotion()) {
+        turn.phi = targetPhi;
+      } else {
+        gsap.to(turn, { phi: targetPhi, duration: SWING_SECONDS, ease: 'back.out(1.25)', onUpdate: draw });
+      }
+    }
+    draw();
   }
 
   app.renderer.on('resize', layout);
@@ -68,6 +119,7 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
     destroy() {
       if (destroyed) return;
       destroyed = true;
+      gsap.killTweensOf(turn);
       observer.disconnect();
       app.renderer.off('resize', layout);
       app.destroy({ removeView: true }, { children: true });
