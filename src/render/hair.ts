@@ -1,5 +1,6 @@
 import type { Graphics } from 'pixi.js';
 import type { Length, Region } from '../state';
+import type { Band } from './colour';
 import { DEG, HEAD, lerp, mulberry32, project, smoothstep } from './geometry';
 import { INK, OUTLINE_THIN, SHADOW_FACTOR, shade } from './style';
 
@@ -201,7 +202,9 @@ export interface ProjectedLock {
   left: number[];
   right: number[];
   boundary: number[];
-  /** Which edge the lit band hugs: the left one when the lock faces the viewer. */
+  /** Position of each sample along the lock: 0 at the crown, 1 at the tip. Colour bands are cut along this. */
+  u: number[];
+  /** The point just beyond the last sample, where the lock comes to a tip. */
   apex: [number, number];
 }
 
@@ -213,7 +216,11 @@ function projectLock(lock: Lock, phi: number): ProjectedLock {
   const left: number[] = [];
   const right: number[] = [];
   const boundary: number[] = [];
+  const u: number[] = [];
   let depth = 0;
+
+  const top = samples[0].y;
+  const span = Math.max(1e-6, samples[samples.length - 1].y - top);
 
   for (const s of samples) {
     const a1 = s.a - s.hw;
@@ -229,12 +236,13 @@ function projectLock(lock: Lock, phi: number): ProjectedLock {
     left.push(pl.sx, pl.sy);
     right.push(pr.sx, pr.sy);
     boundary.push(pb.sx, pb.sy);
+    u.push((s.y - top) / span);
     depth += project(s.rx * Math.sin(s.a), s.y, s.rz * Math.cos(s.a), phi).d;
   }
 
   const last = samples[samples.length - 1];
   const tip = project(last.rx * Math.sin(last.a), last.y + 5, last.rz * Math.cos(last.a), phi);
-  return { lock, depth: depth / samples.length, left, right, boundary, apex: [tip.sx, tip.sy] };
+  return { lock, depth: depth / samples.length, left, right, boundary, u, apex: [tip.sx, tip.sy] };
 }
 
 /** Project every lock and split into those behind the head and those in front, each sorted back to front. */
@@ -256,19 +264,60 @@ function reversePairs(flat: number[]): number[] {
   return out;
 }
 
-export function drawLocks(g: Graphics, projected: ProjectedLock[], colour: (lock: Lock) => number): void {
+/**
+ * The part of a flat x,y polyline between u0 and u1, where u gives each point's position along it.
+ * The cut ends are interpolated, so a band edge lands exactly on u0 and u1 instead of on the nearest sample.
+ */
+export function sliceEdge(flat: number[], u: number[], u0: number, u1: number): number[] {
+  const out: number[] = [];
+  for (let k = 0; k < u.length - 1; k++) {
+    const a = u[k];
+    const b = u[k + 1];
+    if (b <= u0 || a >= u1) continue;
+    const span = b - a;
+    const f0 = span > 1e-9 ? Math.max(0, (u0 - a) / span) : 0;
+    const f1 = span > 1e-9 ? Math.min(1, (u1 - a) / span) : 1;
+    const x0 = flat[2 * k];
+    const y0 = flat[2 * k + 1];
+    const dx = flat[2 * k + 2] - x0;
+    const dy = flat[2 * k + 3] - y0;
+    if (out.length === 0) out.push(x0 + dx * f0, y0 + dy * f0);
+    out.push(x0 + dx * f1, y0 + dy * f1);
+  }
+  return out;
+}
+
+/** Each colour band runs this much into the next, which is painted over it, so no hairline gap shows between bands. */
+const BAND_OVERLAP = 0.006;
+
+/**
+ * Draw locks back to front. Each lock is painted band by band (one band for a plain colour, several for an
+ * ombre), each with a lit and a shadow tone, then outlined once so the outline runs unbroken down the lock.
+ */
+export function drawLocks(g: Graphics, projected: ProjectedLock[], bandsOf: (lock: Lock) => Band[]): void {
   for (const p of projected) {
-    const base = colour(p.lock);
-    // Alternate locks are a touch darker so neighbours read as separate layers.
-    const lit = p.lock.index % 2 ? shade(base, 0.95) : base;
-    const shadow = shade(lit, SHADOW_FACTOR);
+    for (const band of bandsOf(p.lock)) {
+      const u1 = band.u1 >= 1 ? 1 : Math.min(1, band.u1 + BAND_OVERLAP);
+      const whole = band.u0 <= 0 && u1 >= 1;
+      const left = whole ? p.left : sliceEdge(p.left, p.u, band.u0, u1);
+      const right = whole ? p.right : sliceEdge(p.right, p.u, band.u0, u1);
+      const boundary = whole ? p.boundary : sliceEdge(p.boundary, p.u, band.u0, u1);
+      if (left.length < 4) continue;
 
-    const outer = [...p.left, p.apex[0], p.apex[1], ...reversePairs(p.right)];
-    const litPoly = [...p.left, ...reversePairs(p.boundary)];
+      // Alternate locks are a touch darker so neighbours read as separate layers.
+      const lit = p.lock.index % 2 ? shade(band.colour, 0.95) : band.colour;
+      const shadow = shade(lit, SHADOW_FACTOR);
+      const tip = u1 >= 1 ? p.apex : [];
 
-    g.poly(outer).fill(shadow);
-    g.poly(litPoly).fill(lit);
-    g.poly(outer).stroke({ width: OUTLINE_THIN, color: INK, join: 'round', cap: 'round' });
+      g.poly([...left, ...tip, ...reversePairs(right)]).fill(shadow);
+      g.poly([...left, ...reversePairs(boundary)]).fill(lit);
+    }
+    g.poly([...p.left, p.apex[0], p.apex[1], ...reversePairs(p.right)]).stroke({
+      width: OUTLINE_THIN,
+      color: INK,
+      join: 'round',
+      cap: 'round',
+    });
   }
 }
 
@@ -295,18 +344,25 @@ export function isCovered(locks: Lock[], az: number, y: number): boolean {
   return false;
 }
 
+/** A point on the highlight: its screen position, and the azimuth round the head it lies at (for split colour). */
+export interface SheenPoint {
+  x: number;
+  y: number;
+  az: number;
+}
+
 /**
  * The glossy highlight band on the upper-left of the head, as runs of screen points. Only the parts that
  * lie on hair are returned, so a cropped cut never gets a highlight floating on bare forehead.
  */
-export function sheenRuns(locks: Lock[], phi: number): Array<Array<{ x: number; y: number }>> {
+export function sheenRuns(locks: Lock[], phi: number): SheenPoint[][] {
   const th = 8;
   const half = Math.hypot((HEAD.rx + th) * Math.cos(phi), (HEAD.rz + th) * Math.sin(phi));
   const top = HEAD.ry + th;
   const depthPx = 0.67 * Math.hypot(HEAD.rx * Math.sin(phi), HEAD.rz * Math.cos(phi));
 
-  const runs: Array<Array<{ x: number; y: number }>> = [];
-  let current: Array<{ x: number; y: number }> = [];
+  const runs: SheenPoint[][] = [];
+  let current: SheenPoint[] = [];
   const steps = 14;
   for (let k = 0; k <= steps; k++) {
     const ang = (205 + (57 * k) / steps) * DEG;
@@ -314,8 +370,9 @@ export function sheenRuns(locks: Lock[], phi: number): Array<Array<{ x: number; 
     const sy = 0.74 * top * Math.sin(ang);
     const x = sx * Math.cos(phi) + depthPx * Math.sin(phi);
     const z = -sx * Math.sin(phi) + depthPx * Math.cos(phi);
-    if (isCovered(locks, Math.atan2(x, z), sy)) {
-      current.push({ x: HEAD.cx + sx, y: HEAD.cy + sy });
+    const az = Math.atan2(x, z);
+    if (isCovered(locks, az, sy)) {
+      current.push({ x: HEAD.cx + sx, y: HEAD.cy + sy, az });
     } else if (current.length) {
       runs.push(current);
       current = [];

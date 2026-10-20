@@ -10,8 +10,9 @@ import {
   surface,
   torsoScale,
 } from './geometry';
-import { drawLocks, sheenRuns, splitLocks, type Lock } from './hair';
-import { INK, OUTLINE, PALETTE, SHADOW_FACTOR, celEllipse, hexToNumber, shade } from './style';
+import type { HairPaint } from './colour';
+import { drawLocks, sheenRuns, splitLocks, type Lock, type SheenPoint } from './hair';
+import { INK, OUTLINE, PALETTE, SHADOW_FACTOR, celEllipse, shade } from './style';
 
 /** Gown opening sits here (relative to the head centre) and the collar dips at the front, rises at the back. */
 const COLLAR_Y = 398 - HEAD.cy;
@@ -195,13 +196,13 @@ function drawNose(g: Graphics, skin: number, phi: number): void {
   }
 }
 
-function drawFace(g: Graphics, state: SalonState, phi: number): void {
+function drawFace(g: Graphics, state: SalonState, phi: number, paint: HairPaint): void {
   const { skin, eyes } = state.character;
-  const brow = shade(hexToNumber(state.hair.colour.a), 0.6);
   drawCheeks(g, phi);
-  for (const side of [-1, 1]) {
+  for (const side of [-1, 1] as const) {
     drawEye(g, side * 23 * DEG, phi, eyes);
-    drawBrow(g, side, phi, brow);
+    // Each brow is a darker shade of the root colour on its own side of the head.
+    drawBrow(g, side, phi, shade(paint.root(side), 0.6));
   }
   drawNose(g, skin, phi);
   drawMouth(g, phi);
@@ -211,23 +212,43 @@ function drawFace(g: Graphics, state: SalonState, phi: number): void {
 // Whole character
 // ---------------------------------------------------------------------------------------------------
 
-function hairColour(state: SalonState): (lock: Lock) => number {
-  // Stage 2 will grow this into split and ombre colouring; for now every lock is the single colour.
-  const base = hexToNumber(state.hair.colour.a);
-  return () => base;
+/** The glossy highlight, in runs of the same colour so a split colour changes cleanly at the centre line. */
+function drawSheen(g: Graphics, runs: SheenPoint[][], paint: HairPaint): void {
+  const colourOf = (p: SheenPoint) => shade(paint.sheen(p.az), 1.22);
+  for (const run of runs) {
+    let start = 0;
+    for (let i = 1; i <= run.length; i++) {
+      if (i < run.length && colourOf(run[i]) === colourOf(run[start])) continue;
+      // Points start..i share a colour; including point i lets neighbouring stretches meet without a gap.
+      const pts = run.slice(start, Math.min(i, run.length - 1) + 1);
+      if (pts.length > 1) {
+        g.moveTo(pts[0].x, pts[0].y);
+        for (let k = 1; k < pts.length; k++) g.lineTo(pts[k].x, pts[k].y);
+        g.stroke({ width: 7, color: colourOf(run[start]), alpha: 0.85, cap: 'round', join: 'round' });
+      }
+      start = i;
+    }
+  }
 }
 
 /**
  * Draw Isla at view angle phi (radians; 0 front, pi/2 left, pi back, 3pi/2 right; any value in between is a
- * frame of the swing). Order matters: far-side hair, gown and neck, head and face, near-side hair, highlight.
+ * frame of the swing) with her hair painted as `paint` describes, which may be partway through a colour fade.
+ * Order matters: far-side hair, gown and neck, head and face, near-side hair, highlight.
  */
-export function drawCharacter(g: Graphics, state: SalonState, phi: number, locks: Lock[]): void {
+export function drawCharacter(
+  g: Graphics,
+  state: SalonState,
+  phi: number,
+  locks: Lock[],
+  paint: HairPaint,
+): void {
   g.clear();
   const { skin } = state.character;
-  const colour = hairColour(state);
+  const bandsOf = (lock: Lock) => paint.bands(lock.a0);
   const { behind, front } = splitLocks(locks, phi);
 
-  drawLocks(g, behind, colour);
+  drawLocks(g, behind, bandsOf);
 
   drawGown(g, phi);
   // From the front the V collar sits under the chin and the neck overlaps it; from the back the collar wraps in front.
@@ -242,15 +263,10 @@ export function drawCharacter(g: Graphics, state: SalonState, phi: number, locks
   drawEars(g, skin, phi, false);
   drawHead(g, skin, phi);
   drawEars(g, skin, phi, true);
-  drawFace(g, state, phi);
+  drawFace(g, state, phi, paint);
 
-  drawLocks(g, front, colour);
+  drawLocks(g, front, bandsOf);
 
   // Highlight band, only where hair actually covers.
-  const base = colour(locks[0]);
-  for (const run of sheenRuns(locks, phi)) {
-    g.moveTo(run[0].x, run[0].y);
-    for (let i = 1; i < run.length; i++) g.lineTo(run[i].x, run[i].y);
-    g.stroke({ width: 7, color: shade(base, 1.22), alpha: 0.85, cap: 'round', join: 'round' });
-  }
+  drawSheen(g, sheenRuns(locks, phi), paint);
 }

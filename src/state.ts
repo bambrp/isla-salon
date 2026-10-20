@@ -1,5 +1,13 @@
 import { writable } from 'svelte/store';
+import { withColour, withMode, type ColourMode, type HairColour } from './render/colour';
 
+export type { ColourMode, HairColour };
+
+/**
+ * Left and right in the colour chooser are as the player sees Isla from the front: Left is the screen-left
+ * half of the picture. The 'left' and 'right' views are named for Isla's own sides: the 'left' view shows
+ * her left side, so her face points to the screen-left in it. Cutting regions are decided in Stage 3.
+ */
 export type Stage = 'wash' | 'colour' | 'cut' | 'style';
 export type View = 'front' | 'left' | 'back' | 'right';
 export type Length = 'back' | 'shoulders' | 'bob' | 'short1' | 'short2' | 'short3';
@@ -26,7 +34,7 @@ export interface SalonState {
     wetness: number;
     cleanliness: number;
     conditioned: number;
-    colour: { mode: 'single' | 'split' | 'ombre'; a: string; b: string };
+    colour: HairColour;
     length: Record<Region, Length>;
     curl: 0 | 1 | 2 | 3;
     product: 'none' | 'spiky' | 'flat';
@@ -64,12 +72,6 @@ export function initialState(character: CharacterDef = ISLA): SalonState {
   };
 }
 
-/**
- * Yaw of each view in degrees. The 'left' view shows the left side of the head (the side that is on the
- * screen-left in the front view), so the face points to the screen-right in it.
- */
-export const VIEW_ANGLE: Record<View, number> = { front: 0, left: 90, back: 180, right: 270 };
-
 /** Next view in the rotation order front -> left -> back -> right -> front. */
 export function nextView(view: View): View {
   return VIEWS[(VIEWS.indexOf(view) + 1) % VIEWS.length];
@@ -88,6 +90,23 @@ export function setStage(stage: Stage): void {
 
 export function rotateView(): void {
   salon.update((s) => ({ ...s, view: nextView(s.view) }));
+}
+
+function updateColour(change: (c: HairColour) => HairColour): void {
+  salon.update((s) => {
+    const colour = change(s.hair.colour);
+    return colour === s.hair.colour ? s : { ...s, hair: { ...s.hair, colour } };
+  });
+}
+
+/** Switch between one colour, split (left and right) and ombre (roots and tips). */
+export function setColourMode(mode: ColourMode): void {
+  updateColour((c) => withMode(c, mode));
+}
+
+/** Set one colour slot: a is the single colour, the Left half (as seen from the front), or the roots; b is the Right half, or the tips. */
+export function setColour(slot: 'a' | 'b', hex: string): void {
+  updateColour((c) => withColour(c, slot, hex));
 }
 
 export function toggleMute(): void {

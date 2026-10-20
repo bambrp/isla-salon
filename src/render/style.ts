@@ -36,10 +36,6 @@ export const PALETTE = {
   steel: 0xc9d6df,
 } as const;
 
-export function hexToNumber(hex: string): number {
-  return parseInt(hex.replace('#', ''), 16);
-}
-
 /** Multiply each channel; factor < 1 darkens, > 1 lightens (clamped). */
 export function shade(color: number, factor: number): number {
   const r = Math.min(255, Math.round(((color >> 16) & 0xff) * factor));

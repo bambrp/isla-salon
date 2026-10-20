@@ -3,6 +3,7 @@ import gsap from 'gsap';
 import { VIEWS, sceneFor, type SalonState } from '../state';
 import { drawBackdrop } from './backdrop';
 import { drawCharacter } from './character';
+import { COLOUR_FADE_SECONDS, ColourFade } from './colourFade';
 import { buildLocks, type Lock } from './hair';
 
 export interface SceneHandle {
@@ -57,6 +58,9 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
   let targetPhi = 0;
   let viewIndex = 0;
 
+  // The hair colour on screen, which fades towards whatever colour the state asks for.
+  let fade: ColourFade | undefined;
+
   function layout(): void {
     const w = app.screen.width;
     const h = app.screen.height;
@@ -67,8 +71,8 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
   }
 
   function draw(): void {
-    if (destroyed || !state) return;
-    drawCharacter(character, state, turn.phi, locks);
+    if (destroyed || !state || !fade) return;
+    drawCharacter(character, state, turn.phi, locks, fade.paint());
   }
 
   function render(next: SalonState): void {
@@ -86,6 +90,16 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
     if (key !== locksKey) {
       locks = buildLocks(next.hair.length, next.character.seed);
       locksKey = key;
+    }
+
+    // The first colour just appears; every change after that fades in. A new change part-way through a fade
+    // starts from the colour showing at that moment, so nothing jumps.
+    if (!fade) {
+      fade = new ColourFade(next.hair.colour);
+    } else if (fade.retarget(next.hair.colour)) {
+      gsap.killTweensOf(fade);
+      if (prefersReducedMotion()) fade.finish();
+      else gsap.to(fade, { progress: 1, duration: COLOUR_FADE_SECONDS, ease: 'sine.inOut', onUpdate: draw });
     }
 
     // Always turn forwards (front, left, back, right, front...) so the swing never unwinds backwards.
@@ -120,6 +134,7 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
       if (destroyed) return;
       destroyed = true;
       gsap.killTweensOf(turn);
+      if (fade) gsap.killTweensOf(fade);
       observer.disconnect();
       app.renderer.off('resize', layout);
       app.destroy({ removeView: true }, { children: true });

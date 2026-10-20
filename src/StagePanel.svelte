@@ -1,17 +1,13 @@
 <script lang="ts">
   import { salon, type Stage } from './state';
+  import ColourPanel from './ColourPanel.svelte';
 
-  // Stage 0: the panels are non-functional shells. Each later stage replaces its shell with real controls.
-  const SHELLS: Record<Stage, { title: string; blurb: string; controls: string[] }> = {
+  // Washing, cutting and styling are still non-functional shells; each later stage replaces its shell with real controls.
+  const SHELLS: Record<Exclude<Stage, 'colour'>, { title: string; blurb: string; controls: string[] }> = {
     wash: {
       title: 'Washing',
       blurb: 'Water, shampoo and conditioner controls arrive in Stage 4.',
       controls: ['Temperature', 'Pressure', 'Mint', 'Citrus', 'Tropical', 'Conditioner'],
-    },
-    colour: {
-      title: 'Colouring',
-      blurb: 'Colour chooser with one colour, split or ombre arrives in Stage 2.',
-      controls: ['One colour', 'Left / right', 'Ombre'],
     },
     cut: {
       title: 'Cutting',
@@ -25,29 +21,48 @@
     },
   };
 
-  $: shell = SHELLS[$salon.stage];
+  const LABELS: Record<Stage, string> = { wash: 'Washing', colour: 'Colouring', cut: 'Cutting', style: 'Styling' };
+
+  $: stage = $salon.stage;
+  $: shell = stage === 'colour' ? undefined : SHELLS[stage];
 </script>
 
-<section class="panel" aria-live="polite">
-  <h2>{shell.title}</h2>
-  <p>{shell.blurb}</p>
-  <div class="chips">
-    {#each shell.controls as label}
-      <button class="chip" disabled>{label}</button>
-    {/each}
-  </div>
+<section class="panel" aria-label="{LABELS[stage]} controls">
+  {#if shell}
+    <div aria-live="polite">
+      <h2>{shell.title}</h2>
+      <p>{shell.blurb}</p>
+      <div class="chips">
+        {#each shell.controls as label}
+          <button class="chip" disabled>{label}</button>
+        {/each}
+      </div>
+    </div>
+  {:else}
+    <ColourPanel />
+  {/if}
 </section>
 
 <style>
   .panel {
     margin: 10px;
-    /* Reserve room for the tallest shell so the stage area doesn't jump when switching stages. */
-    min-height: 11.5rem;
     padding: 12px 14px;
+    /* The same height for every stage, so the picture doesn't change size when you switch; it scrolls if a stage needs more. */
+    height: min(var(--panel-height, 18rem), 46dvh);
+    overflow-y: auto;
     background: var(--panel);
     border: var(--outline);
     border-radius: var(--radius);
     box-shadow: 0 4px 0 var(--ink);
+  }
+
+  /* Landscape phones put the panel beside the picture, where it can use the full height. */
+  @media (orientation: landscape) and (max-height: 520px) {
+    .panel {
+      height: auto;
+      min-height: 0;
+      margin: 0 10px 10px 0;
+    }
   }
 
   h2 {

@@ -24,6 +24,30 @@ looking like one cartoon. The constants live in `src/render/style.ts`.
   locks give the stripe pattern. Alternate locks sit slightly inside the others and are a touch darker.
 - A single curved highlight band sits on the upper left of the head, only where hair actually covers it.
 
+## Hair colour
+Hair can be one colour, split left and right, or ombre. The rules live in `src/render/colour.ts` and are all unit-tested.
+- **In the colour chooser, Left and Right are as the player sees Isla from the front.** Left (colour a) is the
+  screen-left of the front view, Right (colour b) the screen-right, and from behind they swap on screen. The
+  'left' and 'right' views still name Isla's own sides, so the left view shows her left side (the chooser's Right
+  colour). The chooser's icons show the half of the screen each colour will paint.
+- **Colour changes fade in over one second** (`COLOUR_FADE_SECONDS`, sine in-out). A change mid-fade starts from the
+  colour on screen; with reduced motion it is instant, and the first colour on load never fades.
+- **One colour**: every lock the same colour, with the usual lit and shadow tones.
+- **Left and right**: each lock takes its colour from the side of the head it grows from, so the join runs down
+  the middle of the front parting and the back, and stays correct as Isla turns.
+- **Ombre**: roots to tips, per lock, in flat bands (`OMBRE_STEPS` + 1 of them, never a smooth fade, to keep the
+  cel-shaded look). The top third or so of each lock keeps the roots colour, then it steps towards the tips
+  colour. Bands are measured along each lock, so both colours show at every length, down to the shortest crop.
+- **Mixing colours** goes round the hue circle by the shorter way (in OKLab), so blonde to purple passes through
+  orange and pink rather than turning muddy grey.
+- Each tone is made from the band colour the same way as for any other shape: shadow is lit x 0.78, and
+  alternate locks are x 0.95. Outlines stay the single ink colour, drawn once per lock so they run unbroken
+  down it, whatever bands lie underneath.
+- Eyebrows take a darker shade of the root colour on their own side of the head, and the highlight band takes
+  the colour of the hair it lies on.
+- The quick-pick swatches (`HAIR_SWATCHES`) are a few natural shades first, then the vibrant ones. The chooser
+  also has a mixer (hue, vividness, lightness) and the device's own colour picker.
+
 ## Faces
 - Big round eyes with a white, a coloured iris, a dark pupil and one white sparkle. Small nose, simple smile,
   rosy cheeks, thin darker-than-hair eyebrows.

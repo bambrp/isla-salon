@@ -7,9 +7,18 @@ Based on `intent.md`. Decisions below were confirmed by the owner.
 | Stage | State |
 |---|---|
 | 0 Foundations | Done and approved |
-| 1 Procedural character, four views, backdrops | **Built, awaiting your feedback** |
-| 2 Colouring | Next |
-| 3 to 7 | Not started |
+| 1 Procedural character, four views, backdrops | Done and approved |
+| 2 Colouring | **Revised after feedback, awaiting your approval** |
+| 3 Cutting | Next |
+| 4 to 7 | Not started |
+
+Stage 2 notes (decisions made while building):
+- Colouring has three modes: one colour, left and right (as you see Isla from the front: Left is the screen-left), and ombre (roots to tips).
+- The chooser has 11 quick-pick swatches (natural shades first, then vibrant), a mixer with hue, vividness and lightness sliders, and the device's own colour picker. Every control is at least 44px and has an accessible name.
+- Switching to left and right or ombre while both colours are still the same fills the second colour with a contrasting one, so the change shows immediately. Going back to one colour remembers the second colour.
+- Ombre is drawn in flat bands to keep the cel-shaded look, measured along each lock so both colours show at every length. Blends go round the hue circle (blonde to purple passes through orange and pink, not grey).
+- Feedback applied: Left/Right labelled as the player sees them, ombre unchanged, and every colour change fades in over one second (instant with reduced motion).
+- Checked by measuring the rendered pixels for every length and view (72 cases: split on the correct side, ombre running roots to tips, single staying single), a frame-stepped check of the one-second fade, plus a 60-point test of the chooser driven by touch on phone-sized screens.
 
 Stage 1 notes (decisions made while building):
 - Hair is 24 locks hanging from the scalp, projected for any view angle; the same model will carry colour, curl and product later.

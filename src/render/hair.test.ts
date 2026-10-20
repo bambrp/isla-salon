@@ -1,12 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import type { Length, Region } from '../state';
+import { ombreBands, type Band } from './colour';
 import { DEG, HEAD } from './geometry';
 import {
   FRINGE_MAX_REACH,
   FRONT_SECTOR,
   LOCK_COUNT,
   buildLocks,
+  drawLocks,
   reachAt,
+  sheenRuns,
+  sliceEdge,
   splitLocks,
   type Lengths,
 } from './hair';
@@ -135,5 +139,133 @@ describe('splitLocks', () => {
 
   it('keeps the regions distinct: every region name maps to a length', () => {
     expect(REGIONS).toHaveLength(4);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------
+// Colour bands
+// ---------------------------------------------------------------------------------------------------
+
+/** A stand-in for Pixi's Graphics that records what was painted, in order. */
+function recorder() {
+  const log: Array<{ kind: 'poly' | 'fill' | 'stroke'; arg: unknown }> = [];
+  const g = {
+    poly(points: number[]) {
+      log.push({ kind: 'poly', arg: points });
+      return g;
+    },
+    fill(colour: number) {
+      log.push({ kind: 'fill', arg: colour });
+      return g;
+    },
+    stroke(style: unknown) {
+      log.push({ kind: 'stroke', arg: style });
+      return g;
+    },
+  };
+  return { g: g as unknown as Parameters<typeof drawLocks>[0], log };
+}
+
+describe('sliceEdge', () => {
+  // A straight edge down x = 10, sampled at uneven positions along it.
+  const u = [0, 0.2, 0.5, 1];
+  const flat = [10, 0, 10, 20, 10, 50, 10, 100];
+
+  it('returns the whole edge for the full range', () => {
+    expect(sliceEdge(flat, u, 0, 1)).toEqual([10, 0, 10, 20, 10, 50, 10, 100]);
+  });
+
+  it('cuts exactly at the requested positions, between samples', () => {
+    expect(sliceEdge(flat, u, 0.1, 0.35)).toEqual([10, 10, 10, 20, 10, 35]);
+  });
+
+  it('starts and ends on a sample without duplicating it', () => {
+    expect(sliceEdge(flat, u, 0.2, 0.5)).toEqual([10, 20, 10, 50]);
+  });
+
+  it('returns nothing outside the edge', () => {
+    expect(sliceEdge(flat, u, 1.2, 1.5)).toEqual([]);
+    expect(sliceEdge(flat, u, -1, 0)).toEqual([]);
+  });
+
+  it('tolerates repeated samples', () => {
+    const slice = sliceEdge([0, 0, 0, 0, 0, 10], [0, 0, 1], 0, 1);
+    expect(slice[slice.length - 1]).toBe(10);
+    expect(slice.every(Number.isFinite)).toBe(true);
+  });
+
+  it('adjacent slices join end to start with nothing missing', () => {
+    const a = sliceEdge(flat, u, 0, 0.3);
+    const b = sliceEdge(flat, u, 0.3, 1);
+    expect(a.slice(-2)).toEqual(b.slice(0, 2));
+  });
+});
+
+describe('drawLocks with colour bands', () => {
+  const locks = buildLocks(uniform('shoulders'), 6);
+  const { front } = splitLocks(locks, 0);
+  const one = (colour: number): Band[] => [{ u0: 0, u1: 1, colour }];
+
+  it('paints a plain colour as one shadow shape, one lit shape and one outline per lock', () => {
+    const { g, log } = recorder();
+    drawLocks(g, front, () => one(0xff0000));
+    expect(log.filter((e) => e.kind === 'stroke')).toHaveLength(front.length);
+    expect(log.filter((e) => e.kind === 'fill')).toHaveLength(front.length * 2);
+    expect(log.filter((e) => e.kind === 'poly')).toHaveLength(front.length * 3);
+  });
+
+  it('paints an ombre as several bands per lock, still with a single outline each', () => {
+    const { g, log } = recorder();
+    drawLocks(g, front, () => ombreBands(0xffd84a, 0x9b5de5));
+    expect(log.filter((e) => e.kind === 'stroke')).toHaveLength(front.length);
+    const fills = log.filter((e) => e.kind === 'fill').length;
+    expect(fills).toBeGreaterThan(front.length * 6);
+    expect(fills).toBeLessThanOrEqual(front.length * 12);
+  });
+
+  it('outlines each lock after its colour, so the next lock can cover it cleanly', () => {
+    const { g, log } = recorder();
+    drawLocks(g, front.slice(0, 3), () => ombreBands(0xffd84a, 0x9b5de5));
+    const kinds = log.map((e) => e.kind).filter((k) => k === 'stroke');
+    expect(kinds).toHaveLength(3);
+    // between two outlines there are only fills and polys, never an outline of a later lock first
+    let strokes = 0;
+    for (const e of log) {
+      if (e.kind === 'stroke') strokes++;
+      if (e.kind === 'fill') expect(strokes).toBeLessThanOrEqual(2);
+    }
+  });
+
+  it('every shape it paints has finite coordinates, for every length, view and ombre', () => {
+    const problems: string[] = [];
+    for (const l of LENGTHS) {
+      const cut = buildLocks(uniform(l), 6);
+      for (const phi of [0, 45, 90, 135, 180, 225, 270, 315].map((d) => d * DEG)) {
+        const { behind, front: near } = splitLocks(cut, phi);
+        const { g, log } = recorder();
+        drawLocks(g, [...behind, ...near], () => ombreBands(0xffd84a, 0x9b5de5));
+        for (const e of log) {
+          if (e.kind === 'poly' && !(e.arg as number[]).every(Number.isFinite)) problems.push(`${l} @ ${phi}`);
+          if (e.kind === 'poly' && (e.arg as number[]).length < 6) problems.push(`${l} @ ${phi}: degenerate shape`);
+        }
+      }
+    }
+    expect(problems).toEqual([]);
+  });
+});
+
+describe('sheenRuns', () => {
+  it('gives each highlight point the azimuth it lies at, so split colour can colour it', () => {
+    const runs = sheenRuns(buildLocks(uniform('shoulders'), 6), 0);
+    expect(runs.length).toBeGreaterThan(0);
+    for (const run of runs) for (const p of run) expect(Number.isFinite(p.az)).toBe(true);
+  });
+
+  it("keeps the highlight on Isla's right in the front view and on her left in the back view", () => {
+    // Light comes from the upper left of the screen: that is her right side from the front, her left from the back.
+    const front = sheenRuns(buildLocks(uniform('shoulders'), 6), 0).flat();
+    const back = sheenRuns(buildLocks(uniform('shoulders'), 6), Math.PI).flat();
+    expect(front.every((p) => p.az < 0)).toBe(true);
+    expect(back.every((p) => p.az > 0)).toBe(true);
   });
 });
