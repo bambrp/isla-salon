@@ -6,9 +6,8 @@ export type { Applying, ColourMode, HairColour, Product, Shampoo, WashLevels };
 
 /**
  * Left and right in the colour chooser are as the player sees Isla from the front: Left is the screen-left
- * half of the picture. The 'left' and 'right' views are named for Isla's own sides: the 'left' view shows
- * her left side, so her face points to the screen-left in it. Cutting regions follow the colour chooser:
- * Left and Right are as seen from the front (see cut.ts).
+ * half of the picture. Every left and right in the game is the player's: cutting regions and the 'left' and
+ * 'right' views follow the same rule, so the 'left' view shows the Left region face on (see cut.ts and geometry.ts).
  */
 export type Stage = 'wash' | 'colour' | 'cut' | 'style';
 export type View = 'front' | 'left' | 'back' | 'right';
@@ -190,6 +189,16 @@ export function commitWash(levels: WashLevels): void {
           },
         },
   );
+}
+
+/** How tightly the hair is curled: 0 is straight, 3 is tight curls. */
+export function setCurl(curl: 0 | 1 | 2 | 3): void {
+  salon.update((s) => (s.hair.curl === curl ? s : { ...s, hair: { ...s.hair, curl } }));
+}
+
+/** The styling product on the hair: none, spiky gel or a flattening serum. Only one at a time. */
+export function setStyleProduct(product: 'none' | 'spiky' | 'flat'): void {
+  salon.update((s) => (s.hair.product === product ? s : { ...s, hair: { ...s.hair, product } }));
 }
 
 export function toggleMute(): void {

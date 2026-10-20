@@ -1,7 +1,17 @@
 import { mount } from 'svelte';
 import gsap from 'gsap';
 import App from './App.svelte';
-import { salon, rotateView, selectCutTarget, setColour, setColourMode, setLength, setStage } from './state';
+import {
+  rotateView,
+  salon,
+  selectCutTarget,
+  setColour,
+  setColourMode,
+  setCurl,
+  setLength,
+  setStage,
+  setStyleProduct,
+} from './state';
 import './app.css';
 
 const target = document.getElementById('app');
@@ -18,6 +28,8 @@ if (new URLSearchParams(window.location.search).has('debug')) {
     setColourMode,
     selectCutTarget,
     setLength,
+    setCurl,
+    setStyleProduct,
     gsap,
   };
 }

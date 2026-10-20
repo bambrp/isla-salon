@@ -22,8 +22,8 @@ export const LENGTH_LABELS: Record<Length, string> = {
 export const REGIONS: readonly Region[] = ['front', 'left', 'right', 'back'];
 
 /**
- * The azimuth round the head at the middle of each region (0 = straight ahead, + = Isla's own left, which is
- * the screen-right in the front view). So the player's Left is Isla's right side, at a negative azimuth.
+ * The azimuth round the head at the middle of each region (0 = straight ahead, + = the screen-right
+ * of the front view). So the player's Left is at a negative azimuth.
  */
 export const REGION_AZIMUTH: Record<Region, number> = {
   front: 0,
@@ -41,8 +41,8 @@ export function regionOfAzimuth(az: number): Region {
   return t > 0 ? 'right' : 'left';
 }
 
-/** Angle each view turns Isla by (see geometry.ts): the left view shows her own left side. */
-const VIEW_PHI: Record<View, number> = { front: 0, left: 90 * DEG, back: 180 * DEG, right: 270 * DEG };
+/** Angle each view turns Isla by (see geometry.ts): the left view shows the Left region, the right view the Right. */
+const VIEW_PHI: Record<View, number> = { front: 0, left: -90 * DEG, back: 180 * DEG, right: 90 * DEG };
 
 /** Smallest angle between two azimuths, 0 to pi. */
 function gap(a: number, b: number): number {

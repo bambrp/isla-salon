@@ -1,13 +1,15 @@
 import { Application, Container, Graphics } from 'pixi.js';
 import gsap from 'gsap';
 import { VIEWS, commitWash, sceneFor, washLevels, type Region, type SalonState } from '../state';
-import { playGrow, playSnip, updateWashSound, type WashSound } from '../audio';
+import { playBoing, playGrow, playPat, playSnip, playSpray, updateWashSound, type WashSound } from '../audio';
 import { REGION_AZIMUTH, changedRegions, isShorter, regionOfAzimuth } from '../cut';
 import { drawBackdrop } from './backdrop';
 import { drawCharacter } from './character';
 import { COLOUR_FADE_SECONDS, ColourFade } from './colourFade';
 import { HEAD, project, silhouetteHalfWidth } from './geometry';
 import { buildLocks, reachAt, splitLocks, type Lock, type Lengths } from './hair';
+import { NO_LOOK, lookOf, sameLook, type Look } from './look';
+import { SPARK_LIFE, drawSparks, mistSpray, starBurst, type Spark } from './stylefx';
 import { CLIPPING_LIFE, drawClippings, drawScissors, type Clipping } from './scissors';
 import { INK, shade } from './style';
 import { onDial, productAt } from './sinkLayout';
@@ -81,6 +83,11 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
   let locks: Lock[] = [];
   let locksKey = '';
   let shown: Lengths | undefined;
+  // The styling on show (curl and product), which tweens to the one asked for, and the sparks that play on a change.
+  const look: Look = { ...NO_LOOK };
+  let lookTarget: Look | undefined;
+  let sparks: Spark[] = [];
+  const sparkClock = { t: SPARK_LIFE };
   let snip: gsap.core.Timeline | undefined;
   let pendingCut: Lengths | undefined;
 
@@ -241,6 +248,7 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
   function drawFx(): void {
     fx.clear();
     drawClippings(fx, clippings, fall.t);
+    drawSparks(fx, sparks, sparkClock.t);
     drawScissors(fx, scissors.x, scissors.y, scissors.angle, scissors.open, scissors.alpha);
   }
 
@@ -251,9 +259,51 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
   }
 
   function showCut(lengths: Lengths, seed: number): void {
-    locks = buildLocks(lengths, seed);
+    locks = buildLocks(lengths, seed, look);
     bubbles = foamLayout(lengths, seed);
     shown = { ...lengths };
+  }
+
+  /** Rebuild the hair for the style as it is right now, part-way through a change. */
+  function restyle(): void {
+    if (shown && state) locks = buildLocks(shown, state.character.seed, look);
+  }
+
+  function playSparks(list: Spark[]): void {
+    sparks = list;
+    gsap.killTweensOf(sparkClock);
+    sparkClock.t = 0;
+    gsap.to(sparkClock, { t: SPARK_LIFE, duration: SPARK_LIFE, ease: 'none', onUpdate: drawFx, onComplete: () => { sparks = []; drawFx(); } });
+  }
+
+  /** Move to the curl and product the player chose: the hair eases into it, with a burst of stars or a puff of mist. */
+  function applyLook(next: SalonState): void {
+    const target = lookOf(next.hair.curl, next.hair.product);
+    if (!lookTarget) {
+      lookTarget = target;
+      Object.assign(look, target);
+      return;
+    }
+    if (sameLook(target, lookTarget)) return;
+    const prev = lookTarget;
+    lookTarget = target;
+    const reduced = prefersReducedMotion();
+    gsap.killTweensOf(look);
+    if (reduced) {
+      Object.assign(look, target);
+      restyle();
+    } else {
+      gsap.to(look, { ...target, duration: 0.6, ease: 'sine.inOut', onUpdate: () => { restyle(); draw(); } });
+    }
+    if (target.curl !== prev.curl) {
+      playBoing();
+      if (!reduced) playSparks(starBurst());
+    }
+    if (target.spiky !== prev.spiky || target.flat !== prev.flat) {
+      playSpray();
+      if (target.flat > prev.flat) playPat();
+      if (!reduced) playSparks(mistSpray(target.flat ? 0xbfe9ff : target.spiky ? 0xff9ed0 : 0xffffff));
+    }
   }
 
   /** Throw the clipped hair off the region's cut line. */
@@ -379,6 +429,8 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
       drawnScene = scene;
     }
 
+    applyLook(next);
+
     // A different character gets a fresh head of hair at once; a change of cut goes through the scissors.
     const seedKey = String(next.character.seed);
     if (seedKey !== locksKey) {
@@ -416,7 +468,7 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
     if (index !== viewIndex) {
       const steps = (index - viewIndex + VIEWS.length) % VIEWS.length;
       viewIndex = index;
-      targetPhi += (steps * Math.PI) / 2;
+      targetPhi -= (steps * Math.PI) / 2;
       gsap.killTweensOf(turn);
       if (prefersReducedMotion()) {
         turn.phi = targetPhi;
@@ -495,6 +547,8 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
       tickerOn = false;
       updateWashSound(null, 0);
       snip?.kill();
+      gsap.killTweensOf(look);
+      gsap.killTweensOf(sparkClock);
       gsap.killTweensOf(fall);
       gsap.killTweensOf(scissors);
       gsap.killTweensOf(turn);

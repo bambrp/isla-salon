@@ -2,6 +2,8 @@
 
 Based on `intent.md`. Decisions below were confirmed by the owner.
 
+**Convention: every "left" and "right" in the game, the code and these docs is from the player's perspective** (the way they see the screen), never Isla's own sides. Left is the half of the picture on the screen-left when Isla faces the player. This covers the colour chooser, the cutting regions and the left and right views.
+
 ## Status
 
 | Stage | State |
@@ -10,8 +12,9 @@ Based on `intent.md`. Decisions below were confirmed by the owner.
 | 1 Procedural character, four views, backdrops | Done and approved |
 | 2 Colouring | Done (feedback applied; you asked to move on) |
 | 3 Cutting | Done (you asked to move on) |
-| 4 Washing | **Built, awaiting your feedback** |
-| 5 to 7 | Not started |
+| 4 Washing | Done (you asked to move on) |
+| 5 Styling | **Built, awaiting your feedback** |
+| 6 to 7 | Not started |
 
 Stage 2 notes (decisions made while building):
 - Colouring has three modes: one colour, left and right (as you see Isla from the front: Left is the screen-left), and ombre (roots to tips).
@@ -23,12 +26,21 @@ Stage 2 notes (decisions made while building):
 
 Stage 3 notes (decisions made while building):
 - Cutting has a region row (All, Front, Left, Right, Back) and six length buttons (Long, Shoulder, Bob, Short, Shorter, Crop), each with a little head showing the length. Tapping her head or hair also picks the region. Every button is at least 44px.
-- **Left and right regions are as you see Isla from the front**, the same as the colour chooser (my choice, as you asked for consistency in Stage 2; easy to flip). The 'left' and 'right' views still name Isla's own sides, so the left view shows the Right region.
+- **Left and right are the player's**, the same as the colour chooser: Left is the screen-left side of the front view. The 'left' and 'right' views follow the same rule (see the convention at the top), so the left view shows the Left region face on.
 - Pressing a length cuts at once in the data, then scissors snip twice and the hair drops, with clippings in the hair's tip colour falling off the cut. Going longer needs no scissors: it grows with a soft chime. Reduced motion skips the animation. Mashing buttons ends on the last length.
 - Sound is made with Web Audio (no files): a snip and a grow chime, both respecting the mute button.
 - A white dot marks the end of each visible lock in the chosen region, so you can see what you are about to cut. If the region faces away, the panel says to turn Isla round.
 - Seams between regions already blend smoothly (the reach grades between region lengths), so mixed cuts such as a long Left with a cropped Right read as one haircut.
 - Checked in a real browser: controls, tap-to-select in every view, the snip stepped through by exact time (hair intact until the second snip, gone after), reduced motion, growing, and button mashing; plus a contact sheet of mixed cuts from all four views.
+
+Stage 5 notes (what is built):
+- Styling has a Curl row (Straight, Waves, Curls, Tight curls, each with a little head showing the waviness) and a Product row (None, Spiky, Flat). One product at a time; curl and product combine freely. Every button is at least 44px.
+- Curl swings each lock side to side and in and out, so the outline ripples in every view; tighter curl waves faster and wider, fills the hair out a little, and lifts it so curled hair hangs slightly shorter than straight.
+- Spiky stands the crown up in tufts of different heights and flicks the ends outwards. Rules with length: it reads best on short cuts; on long hair, which is too heavy to stand, the effect is about half as strong, so it mostly flicks the ends.
+- Flat presses the hair thin and sleek against the head, removes the natural wave and most (85%) of the curl, so tight curls with flat product come out only gently wavy.
+- Changes ease in over 0.6 seconds (instant with reduced motion). Curling plays a burst of stars and a boing; product plays a puff of mist and a spray hiss (flat adds a soft pat). Sounds are Web Audio, no files, and respect mute.
+- Styling survives cutting and colouring: the cut stage keeps curl and product, and the scissors still work on styled hair.
+- Checked: styled hair never covers the eyes, brows or cheeks for all 1,296 cuts under six looks (including in-between looks mid-change); every sample stays finite and inside the picture; a browser check of the panel, the morph stepped by exact time, product exclusivity, reduced motion, and cuts on styled hair; plus contact sheets of every look at short, bob and long lengths from all four views. All earlier checks still pass.
 
 Stage 4 notes (what is built):
 - Washing has a Temperature slider (Cold, Warm, Hot), a Pressure slider (Gentle, Medium, Strong), a product row (Mint, Citrus, Tropical, Conditioner) and two hold buttons: "Hold for water" and "Hold to apply" the chosen product. Every control is at least 44px.
@@ -56,7 +68,7 @@ A browser-based, offline-capable, single-player sandbox game simulating a salon 
 |---|---|
 | 1 | 2D rendering |
 | 2 | Procedural vector art (all art generated in code, no hand-drawn asset pipeline) |
-| 3 | Rotate button cycling front, left, back, right views (v1) |
+| 3 | Rotate button cycling front, left, back, right views (v1). Left and right are the player's, so the left view shows the side of her head that was on the player's left in the front view |
 | 4 | Mobile is a target: touch-first, no hover, no right-click, no keyboard required |
 | 5 | Pure sandbox: no goals, scoring or network functions |
 | 6 | v1 has one fixed character, Isla; architecture must allow more characters later |

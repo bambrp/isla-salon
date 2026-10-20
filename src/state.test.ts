@@ -7,6 +7,8 @@ import {
   sceneFor,
   setColour,
   setColourMode,
+  setCurl,
+  setStyleProduct,
   VIEWS,
 } from './state';
 
@@ -80,5 +82,31 @@ describe('colour changes', () => {
     expect(after.view).toBe(before.view);
     expect(after.stage).toBe(before.stage);
     expect(after.character).toBe(before.character);
+  });
+});
+
+describe('styling actions', () => {
+  beforeEach(() => salon.set(initialState()));
+
+  it('starts straight with no product', () => {
+    expect(get(salon).hair.curl).toBe(0);
+    expect(get(salon).hair.product).toBe('none');
+  });
+
+  it('sets the curl and the product independently', () => {
+    setCurl(2);
+    setStyleProduct('spiky');
+    expect(get(salon).hair.curl).toBe(2);
+    expect(get(salon).hair.product).toBe('spiky');
+    setStyleProduct('flat');
+    expect(get(salon).hair.curl).toBe(2);
+    expect(get(salon).hair.product).toBe('flat');
+  });
+
+  it('leaves the state alone when nothing changes', () => {
+    const before = get(salon);
+    setCurl(0);
+    setStyleProduct('none');
+    expect(get(salon)).toBe(before);
   });
 });

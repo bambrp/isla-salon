@@ -8,18 +8,19 @@ describe('projection', () => {
     expect(p.d).toBeGreaterThan(0);
   });
 
-  it('turns the face to screen-left in the left view and screen-right in the right view', () => {
-    expect(project(0, 0, HEAD.rz, viewAngle('left')).sx).toBeLessThan(HEAD.cx - 60);
-    expect(project(0, 0, HEAD.rz, viewAngle('right')).sx).toBeGreaterThan(HEAD.cx + 60);
+  it("turns the face to screen-right in the left view and screen-left in the right view, so each shows the player's own side", () => {
+    expect(project(0, 0, HEAD.rz, viewAngle('left')).sx).toBeGreaterThan(HEAD.cx + 60);
+    expect(project(0, 0, HEAD.rz, viewAngle('right')).sx).toBeLessThan(HEAD.cx - 60);
   });
 
   it('hides the face in the back view', () => {
     expect(project(0, 0, HEAD.rz, viewAngle('back')).d).toBeLessThan(0);
   });
 
-  it("shows the character's left side (+x) to the viewer in the left view", () => {
-    expect(project(HEAD.rx, 0, 0, viewAngle('left')).d).toBeGreaterThan(0);
-    expect(project(-HEAD.rx, 0, 0, viewAngle('left')).d).toBeLessThan(0);
+  it("shows the side that was on the player's left in the front view (-x) to the viewer in the left view", () => {
+    expect(project(-HEAD.rx, 0, 0, viewAngle('left')).d).toBeGreaterThan(0);
+    expect(project(HEAD.rx, 0, 0, viewAngle('left')).d).toBeLessThan(0);
+    expect(project(HEAD.rx, 0, 0, viewAngle('right')).d).toBeGreaterThan(0);
   });
 
   it('keeps x and z lengths: a full turn returns to the start', () => {

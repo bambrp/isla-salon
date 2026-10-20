@@ -2,6 +2,7 @@ import type { Graphics } from 'pixi.js';
 import type { Length, Region } from '../state';
 import type { Band } from './colour';
 import { DEG, HEAD, lerp, mulberry32, project, smoothstep } from './geometry';
+import { NO_LOOK, type Look } from './look';
 import { INK, OUTLINE_THIN, SHADOW_FACTOR, shade } from './style';
 
 /**
@@ -99,7 +100,7 @@ function wrap(a: number): number {
  * Where hair ends at a given azimuth, relative to the head centre. Region lengths sit at the compass points
  * (front 0, back 180, and the sides at +90 and -90) and blend smoothly between them, so a bob next to a shoulder-length
  * cut grades gently instead of stepping. Regions are named as the player sees Isla from the front, so Right is
- * the screen-right side, which is her own left at +90, and Left is at -90.
+ * the screen-right side of the front view at +90, and Left is at -90.
  */
 export function reachAt(az: number, lengths: Lengths): number {
   const centres = [
@@ -133,8 +134,16 @@ function buildSamples(
   reach: number,
   swept: boolean,
   phase: number,
+  look: Look,
+  index: number,
 ): LockSample[] {
-  const top = HEAD.ry + th;
+  // Flat product plasters the hair down and takes most of the curl out; spiky stands the crown up in tufts of
+  // different heights and flicks the ends outwards, less so on long hair, which is too heavy to stand.
+  const flat = look.flat;
+  const curl = look.curl * (1 - 0.85 * flat);
+  const spike = look.spiky * (1 - 0.5 * smoothstep(60, 220, reach));
+  const tuft = spike * (9 + 9 * (index % 3));
+  const top = HEAD.ry + th + tuft;
   const ys: number[] = [];
 
   // Over the dome, sampled by polar angle so the curve stays smooth near the crown.
@@ -151,27 +160,39 @@ function buildSamples(
   if (reach > 0) ys.push(reach);
 
   const aT = sweepTarget(a0);
-  const waveAmp = reach > 0 ? 0.03 : 0.012;
+  const waveAmp = (reach > 0 ? 0.03 : 0.012) * (1 - flat);
+  const curlAmp = 0.06 * curl;
+  const curlFreq = 0.04 + 0.039 * curl;
   const span = reach - ys[0];
 
   return ys.map((y) => {
     const scale = y <= 0 ? Math.sqrt(Math.max(0, 1 - (y / top) ** 2)) : 1;
-    const flare = 1 + 0.1 * smoothstep(110, 230, y);
+    const flare = 1 + 0.1 * (1 - flat) * smoothstep(110, 230, y);
     const sweep = swept ? (aT - a0) * smoothstep(-58, -18, y) : 0;
     const wave = waveAmp * Math.sin(y * 0.045 + phase) * smoothstep(-60, 40, y);
     const u = span > 0 ? (y - ys[0]) / span : 1;
+    // Curl swings the lock from side to side and in and out, so the silhouette ripples in every view.
+    const curlEnv = smoothstep(-85, -5, y);
+    const curlSwing = curlAmp * Math.sin(y * curlFreq + phase) * curlEnv;
+    const curlPuff = 1 + 0.05 * curl * Math.sin(y * curlFreq + phase + 1.3) * curlEnv;
+    const flick = 1 + 0.22 * spike * smoothstep(0.55, 1, u);
+    const size = scale * flare * curlPuff * flick;
     return {
       y,
-      rx: (HEAD.rx + th) * scale * flare,
-      rz: (HEAD.rz + th) * scale * flare,
-      a: a0 + sweep + wave,
-      hw: LOCK_HALF_ANGLE * (swept ? SWEPT_NARROWING : 1) * (1 - 0.55 * smoothstep(0.62, 1, u)),
+      rx: (HEAD.rx + th) * size,
+      rz: (HEAD.rz + th) * size,
+      a: a0 + sweep + wave + curlSwing,
+      hw:
+        LOCK_HALF_ANGLE *
+        (swept ? SWEPT_NARROWING : 1) *
+        (1 - 0.55 * smoothstep(0.62, 1, u)) *
+        (1 - 0.4 * spike * smoothstep(0.5, 1, u)),
     };
   });
 }
 
 /** Build every lock for the given cut. Deterministic for a given seed. */
-export function buildLocks(lengths: Lengths, seed: number): Lock[] {
+export function buildLocks(lengths: Lengths, seed: number, look: Look = NO_LOOK): Lock[] {
   const rand = mulberry32(seed * 7919 + 13);
   const locks: Lock[] = [];
 
@@ -179,15 +200,19 @@ export function buildLocks(lengths: Lengths, seed: number): Lock[] {
     const a0 = -Math.PI + ((i + 0.5) * 2 * Math.PI) / LOCK_COUNT;
     let reach = reachAt(a0, lengths);
     reach += (rand() - 0.5) * 2 * (reach > 0 ? 7 : 3);
+    // Curls spring the hair up, so it hangs a little shorter the tighter it is.
+    if (reach > 0) reach *= 1 - 0.07 * look.curl * (1 - 0.85 * look.flat);
 
     const inFront = Math.abs(a0) < FRONT_SECTOR;
     const swept = inFront && reach >= SWEEP_MIN_REACH;
     if (inFront && !swept) reach = Math.min(reach, FRINGE_MAX_REACH);
 
     // Longer hair is fuller; every other lock sits slightly proud for a layered look.
-    const th = 3 + 7 * smoothstep(-30, 180, reach) + (i % 2) * 2;
+    // Fuller with curl, and pressed close to the head with flat product.
+    const fullness = 3 + 7 * smoothstep(-30, 180, reach) + (i % 2) * 2 + 1.5 * look.curl;
+    const th = fullness + (1.5 - fullness) * look.flat;
     const phase = rand() * Math.PI * 2;
-    locks.push({ index: i, a0, th, reach, swept, samples: buildSamples(a0, th, reach, swept, phase) });
+    locks.push({ index: i, a0, th, reach, swept, samples: buildSamples(a0, th, reach, swept, phase, look, i) });
   }
   return locks;
 }

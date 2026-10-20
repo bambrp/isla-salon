@@ -200,3 +200,68 @@ export function updateWashSound(mode: WashSound, pressure: number): void {
     }, 230);
   }
 }
+
+/** A springy boing, for hair being curled. */
+export function playBoing(): void {
+  const c = context();
+  if (!c) return;
+  const t = c.currentTime;
+  const osc = c.createOscillator();
+  osc.type = 'triangle';
+  osc.frequency.setValueAtTime(260, t);
+  osc.frequency.exponentialRampToValueAtTime(620, t + 0.12);
+  osc.frequency.exponentialRampToValueAtTime(330, t + 0.3);
+  const lfo = c.createOscillator();
+  lfo.frequency.value = 22;
+  const depth = c.createGain();
+  depth.gain.value = 30;
+  lfo.connect(depth).connect(osc.frequency);
+  const gain = c.createGain();
+  gain.gain.setValueAtTime(0.0001, t);
+  gain.gain.exponentialRampToValueAtTime(0.16, t + 0.02);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.34);
+  osc.connect(gain).connect(c.destination);
+  osc.start(t);
+  lfo.start(t);
+  osc.stop(t + 0.36);
+  lfo.stop(t + 0.36);
+}
+
+/** A short aerosol hiss, for styling product being sprayed on. */
+export function playSpray(): void {
+  const c = context();
+  if (!c) return;
+  const t = c.currentTime;
+  const src = c.createBufferSource();
+  src.buffer = noiseBuffer(c);
+  src.loop = true;
+  const filter = c.createBiquadFilter();
+  filter.type = 'highpass';
+  filter.frequency.value = 3200;
+  const gain = c.createGain();
+  gain.gain.setValueAtTime(0.0001, t);
+  gain.gain.exponentialRampToValueAtTime(0.22, t + 0.05);
+  gain.gain.setValueAtTime(0.22, t + 0.3);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.48);
+  src.connect(filter).connect(gain).connect(c.destination);
+  src.start(t);
+  src.stop(t + 0.5);
+}
+
+/** A soft pat, for hair being pressed flat. */
+export function playPat(): void {
+  const c = context();
+  if (!c) return;
+  const t = c.currentTime + 0.4;
+  const osc = c.createOscillator();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(150, t);
+  osc.frequency.exponentialRampToValueAtTime(60, t + 0.12);
+  const gain = c.createGain();
+  gain.gain.setValueAtTime(0.0001, t);
+  gain.gain.exponentialRampToValueAtTime(0.3, t + 0.01);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
+  osc.connect(gain).connect(c.destination);
+  osc.start(t);
+  osc.stop(t + 0.18);
+}

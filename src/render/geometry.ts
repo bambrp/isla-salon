@@ -5,7 +5,9 @@ import { VIEWS, type View } from '../state';
  *
  * Head space: origin at the head centre, +x is the character's left (screen right when she faces us),
  * +y points down, +z points out of her face. A view angle phi turns her about the vertical axis:
- * phi = 0 front, 90 deg left side (face points to screen left), 180 deg back, 270 deg right side.
+ * phi = 0 front, 180 deg back. Left and right always mean the player's left and right: the 'left' view turns
+ * Isla (phi = -90 deg) so the side of her head that was on the player's left in the front view faces the player
+ * (her face points to screen right), and the 'right' view (phi = +90 deg) shows the other side.
  * Projection is orthographic, which suits a flat cartoon look and keeps swings cheap.
  */
 
@@ -43,7 +45,9 @@ export function mulberry32(seed: number): () => number {
 }
 
 export function viewAngle(view: View): number {
-  return (VIEWS.indexOf(view) * Math.PI) / 2;
+  // The views cycle front, left, back, right, each a quarter turn on from the last, in the direction that brings
+  // the player's left side of her head round first.
+  return (-VIEWS.indexOf(view) * Math.PI) / 2;
 }
 
 export interface Vec3 {

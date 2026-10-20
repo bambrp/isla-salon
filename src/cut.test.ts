@@ -46,9 +46,11 @@ describe('regions', () => {
     // Sides are edge-on in the front view, still visible.
     expect(isHiddenIn('left', 'front')).toBe(false);
     expect(isHiddenIn('right', 'front')).toBe(false);
-    // The left view shows Isla's own left side, which is the Right region.
-    expect(isHiddenIn('right', 'left')).toBe(false);
-    expect(isHiddenIn('left', 'left')).toBe(true);
+    // The left view shows the Left region face on, and hides the Right one.
+    expect(isHiddenIn('left', 'left')).toBe(false);
+    expect(isHiddenIn('right', 'left')).toBe(true);
+    expect(isHiddenIn('right', 'right')).toBe(false);
+    expect(isHiddenIn('left', 'right')).toBe(true);
   });
 });
 

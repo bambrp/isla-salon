@@ -6,8 +6,8 @@
  *
  * In a split, "left" and "right" are as you see Isla from the front: Left is the half of the picture on the
  * screen-left, Right the half on the screen-right. Azimuth is measured from straight ahead, positive towards
- * Isla's own left, so from the front the Left colour paints negative azimuths (her own right side) and the
- * Right colour paints positive ones. Turn her round and the colours stay on the same parts of her head.
+ * the screen-right of the front view, so the Left colour paints negative azimuths and the Right colour positive ones. Turn her round and the colours stay on the same parts of her head. The
+ * 'left' view shows the Left colour face on, and the 'right' view the Right.
  */
 
 export type ColourMode = 'single' | 'split' | 'ombre';
