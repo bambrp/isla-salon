@@ -1,0 +1,55 @@
+:root {
+  --ink: #1d1030;
+  --pink: #ff6fb1;
+  --pink-deep: #d6368a;
+  --sky: #5ec8ff;
+  --sun: #ffd84a;
+  --mint: #4fe3b5;
+  --cream: #fff6e8;
+  --panel: #fff6e8;
+  --outline: 3px solid var(--ink);
+  --radius: 18px;
+  --tap: 48px;
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--pink);
+  color: var(--ink);
+  font-family: 'Trebuchet MS', 'Avenir Next', 'Segoe UI', system-ui, sans-serif;
+  /* Touch-first: no text selection, no long-press callouts, no pull-to-refresh. */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  overscroll-behavior: none;
+}
+
+#app {
+  height: 100dvh;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+button:focus-visible,
+input:focus-visible {
+  outline: 4px solid var(--sky);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
