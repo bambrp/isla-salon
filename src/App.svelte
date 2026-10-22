@@ -26,17 +26,23 @@
 
   let host: HTMLDivElement;
   let scene: SceneHandle | undefined;
+  let cannotDraw = false;
 
   onMount(() => {
     let disposed = false;
-    createScene(host).then((handle) => {
-      if (disposed) {
-        handle.destroy();
-        return;
-      }
-      scene = handle;
-      handle.render($salon);
-    });
+    createScene(host)
+      .then((handle) => {
+        if (disposed) {
+          handle.destroy();
+          return;
+        }
+        scene = handle;
+        handle.render($salon);
+      })
+      .catch(() => {
+        // Usually a browser or device with graphics acceleration switched off.
+        cannotDraw = true;
+      });
     return () => {
       disposed = true;
       scene?.destroy();
@@ -181,6 +187,13 @@
       aria-label="Isla, seen from the {viewLabel[$salon.view]}"
     ></div>
 
+    {#if cannotDraw}
+      <p class="problem" role="alert">
+        Sorry, this browser can't draw the salon. It needs WebGL: try turning on hardware acceleration, or use a recent
+        version of Chrome, Edge, Firefox or Safari.
+      </p>
+    {/if}
+
     <div class="tools">
       <button class="round" on:click={rotateView} aria-label="Rotate view. Currently showing the {viewLabel[$salon.view]}">
         <span aria-hidden="true">🔄</span>
@@ -228,6 +241,7 @@
   }
 
   .app {
+    height: 100vh; /* older browsers */
     height: 100dvh;
     display: grid;
     grid-template-rows: auto 1fr auto;
@@ -293,6 +307,10 @@
     right: 10px;
     display: flex;
     flex-direction: column;
+    /* On a short picture the buttons start a second column rather than running off the bottom. */
+    flex-wrap: wrap;
+    align-content: flex-end;
+    max-height: calc(100% - 20px);
     gap: 10px;
   }
 
@@ -317,6 +335,19 @@
 
   .round.confirm {
     background: var(--sun);
+  }
+
+  .problem {
+    position: absolute;
+    inset: 20px;
+    margin: auto;
+    height: fit-content;
+    padding: 16px;
+    background: var(--cream);
+    border: var(--outline);
+    border-radius: var(--radius);
+    font-weight: 700;
+    text-align: center;
   }
 
   .flash {

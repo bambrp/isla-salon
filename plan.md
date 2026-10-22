@@ -14,8 +14,8 @@ Based on `intent.md`. Decisions below were confirmed by the owner.
 | 3 Cutting | Done (you asked to move on) |
 | 4 Washing | Done (you asked to move on) |
 | 5 Styling | Done (you asked to move on) |
-| 6 Photo export and polish | **Built, awaiting your feedback** |
-| 7 Release | Not started |
+| 6 Photo export and polish | Done (you asked to move on) |
+| 7 Release | **Built and release-ready, awaiting your feedback. Going live needs your choice of host (see below)** |
 
 Stage 2 notes (decisions made while building):
 - Colouring has three modes: one colour, left and right (as you see Isla from the front: Left is the screen-left), and ombre (roots to tips).
@@ -33,6 +33,17 @@ Stage 3 notes (decisions made while building):
 - A white dot marks the end of each visible lock in the chosen region, so you can see what you are about to cut. If the region faces away, the panel says to turn Isla round.
 - Seams between regions already blend smoothly (the reach grades between region lengths), so mixed cuts such as a long Left with a cropped Right read as one haircut.
 - Checked in a real browser: controls, tap-to-select in every view, the snip stepped through by exact time (hair intact until the second snip, gone after), reduced motion, growing, and button mashing; plus a contact sheet of mixed cuts from all four views.
+
+Stage 7 notes (what is built):
+- **Offline play**: a service worker is generated at build time (`sw.js`), listing every file of that build and a hash of their contents. The first visit stores the game (about 0.8 MB); after that it opens and plays with no network, including the camera. A new build gets its own copy and the old one is deleted. Tested by going offline in a real browser: reload, play, take a photo, open a fresh tab.
+- **Installable**: icon (Isla's face with scissors, drawn as an SVG and made into 192, 512, maskable and Apple touch PNGs), web manifest and home-screen meta tags, so it opens full screen when added to a phone's home screen.
+- **Nothing leaves the page**: a strict content security policy (own files only, no outside scripts, fonts, images or connections). A request audit of a full session shows every request went to the game's own server. To work under that policy the graphics library runs in its policy-safe mode. No analytics, no tracking, no network calls.
+- **Every screen**: tested in Chromium emulating iPhone SE, iPhone 13 (portrait and landscape), Pixel 7, Galaxy S9+, iPad (portrait and landscape), a tiny 320 x 480 screen, a short wide phone and a 1440 x 900 desktop: no page scrolling, no buttons off screen, controls inside the panel reachable. Found and fixed: on short pictures the four round buttons ran off the bottom; they now start a second column. Older browsers get a fallback for the new viewport-height units.
+- **Graphics fallback**: without WebGL the game falls back to a plain canvas and still plays, camera included (checked). If nothing can draw at all, a clear message appears instead of a blank page.
+- **iPhone saving**: with an iPhone's identity and a simulated share sheet, the photo goes to the share sheet as a PNG and the message says it is ready to save. Not yet tried on a real iPhone.
+- **Hosting files**: `README.md` (running, building, hosting, browser support, a real-device checklist), `public/_headers` for Netlify and Cloudflare Pages, and `.github/workflows/pages.yml` for GitHub Pages.
+- **Not done, needs you**: deploying to a live address needs your choice of host and account (I have no access to any). Firefox and Safari were not available to the automated tests; the README's real-device checklist covers them.
+- All earlier checks still pass on the final build (157 unit tests, colour 72 cases, cutting, styling, washing, fade, photo and accessibility audit with zero problems).
 
 Stage 6 notes (what is built):
 - **Camera button**: takes a photo of Isla and the salon backdrop in the current view, head and shoulders in the black gown, with no buttons, markers, scissors or messages in it. Always 1080 x 1350 (4:5) whatever the screen size or orientation, and named for the view and time (for example isla-front-2026-10-21-0730.png). It plays a flash and shutter sound, downloads the file, and shows a short "Photo saved" message. On iPhones and iPads it opens the share sheet instead (the dependable way to save a picture there), falling back to a download if sharing fails.
@@ -210,9 +221,9 @@ The renderer is a pure function of `SalonState` plus transient animation state (
 - Reset button
 
 ### Stage 7: Release
-- Cross-device and cross-browser testing
-- Optional service worker for offline play
-- Deploy to a static host
+- Cross-device and cross-browser testing (done in Chromium emulation; real Firefox and Safari still to check by hand)
+- Service worker for offline play (done)
+- Deploy to a static host (ready; waiting for the owner to choose a host)
 
 ### Later versions (not in scope for v1, but architecture-ready)
 - Additional characters via `CharacterDef`

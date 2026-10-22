@@ -1,3 +1,4 @@
+import 'pixi.js/unsafe-eval';
 import { Application, Container, Graphics, RenderTexture } from 'pixi.js';
 import gsap from 'gsap';
 import { PHOTO_HEIGHT, PHOTO_WIDTH } from '../photo';

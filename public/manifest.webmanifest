@@ -1,0 +1,16 @@
+{
+  "name": "Isla's Salon",
+  "short_name": "Isla's Salon",
+  "description": "A casual game where you wash, colour, cut and style Isla's hair.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#ff6fb1",
+  "theme_color": "#ff6fb1",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

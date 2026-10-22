@@ -35,6 +35,7 @@ body {
 }
 
 #app {
+  height: 100vh; /* older browsers */
   height: 100dvh;
 }
 

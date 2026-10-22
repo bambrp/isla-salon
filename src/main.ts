@@ -34,4 +34,15 @@ if (new URLSearchParams(window.location.search).has('debug')) {
   };
 }
 
+// Keep a copy of the whole game in the browser so it opens and plays with no network, once it has loaded once.
+// Skipped for the debug and still pages, which automated checks load fresh each time.
+const params = new URLSearchParams(window.location.search);
+if ('serviceWorker' in navigator && !params.has('debug') && !params.has('still') && !import.meta.env.DEV) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {
+      /* offline play is a bonus; the game works without it */
+    });
+  });
+}
+
 export default mount(App, { target });

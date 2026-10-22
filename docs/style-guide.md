@@ -86,3 +86,8 @@ Hair can be one colour, split left and right, or ombre. The rules live in `src/r
 - The photo is the 400 x 500 design box (the picture of Isla and the salon) rendered at 1080 x 1350, so it is always 4:5. Controls, cut markers, scissors, clippings and sparks are hidden while it is taken, eyes are open and the breathing lift is removed.
 - Idle life: a blink every 2.4 to 5.4 seconds (0.18s), and a 2.2px breathing lift over 2.1s, in steps of 0.2px so it costs few frames. Both are off with reduced motion or `?still`.
 - Small pink text uses `--pink-deep` (#c02479), which has a contrast ratio of 5.2 on the cream panel.
+
+## Release
+- The app icon is Isla's face with scissors on the salon pink (`public/icon.svg`); the theme colour is the same pink.
+- Round buttons run in a column down the right of the picture and start a second column when the picture is short.
+- Anything that doesn't fit the screen scrolls inside its panel; the page itself never scrolls.

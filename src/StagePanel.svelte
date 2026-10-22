@@ -27,6 +27,7 @@
     margin: 10px;
     padding: 12px 14px;
     /* The same height for every stage, so the picture doesn't change size when you switch; it scrolls if a stage needs more. */
+    height: min(var(--panel-height, 18rem), 46vh); /* older browsers */
     height: min(var(--panel-height, 18rem), 46dvh);
     overflow-y: auto;
     background: var(--panel);
