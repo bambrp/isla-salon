@@ -1,5 +1,6 @@
-import { Application, Container, Graphics } from 'pixi.js';
+import { Application, Container, Graphics, RenderTexture } from 'pixi.js';
 import gsap from 'gsap';
+import { PHOTO_HEIGHT, PHOTO_WIDTH } from '../photo';
 import { VIEWS, commitWash, sceneFor, washLevels, type Region, type SalonState } from '../state';
 import { playBoing, playGrow, playPat, playSnip, playSpray, updateWashSound, type WashSound } from '../audio';
 import { REGION_AZIMUTH, changedRegions, isShorter, regionOfAzimuth } from '../cut';
@@ -26,6 +27,8 @@ export interface SceneHandle {
   washHit(clientX: number, clientY: number): { kind: 'dial' } | { kind: 'product'; product: Product } | undefined;
   /** Show or hide the temperature scale while a finger is dragging the dial. */
   setDragging(on: boolean): void;
+  /** A photo of Isla and the salon as she is now: the picture only, no controls, always the same size and shape. */
+  photo(): Promise<Blob>;
   destroy(): void;
 }
 
@@ -64,6 +67,35 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
     autoDensity: true,
   });
   host.appendChild(app.canvas);
+
+  // Draw a frame only when something has changed, so a quiet salon costs the phone's battery next to nothing.
+  app.ticker.stop();
+  let dirty = true;
+  let raf = 0;
+  const markDirty = (): void => {
+    dirty = true;
+  };
+  // With ?debug the scene keeps a tally of the work it does, for checking performance.
+  const stats = new URLSearchParams(window.location.search).has('debug')
+    ? ((window as unknown as { salonStats: Record<string, number> }).salonStats = { renders: 0, renderMs: 0, draws: 0, drawMs: 0 })
+    : undefined;
+  const frame = (): void => {
+    if (destroyed) return;
+    if (dirty) {
+      dirty = false;
+      const t = performance.now();
+      app.render();
+      if (stats) {
+        stats.renders++;
+        stats.renderMs += performance.now() - t;
+      }
+    }
+    raf = requestAnimationFrame(frame);
+  };
+  raf = requestAnimationFrame(frame);
+
+  // ?still turns the idle animation off, so automated checks see a steady picture.
+  const idle = !new URLSearchParams(window.location.search).has('still') && !prefersReducedMotion();
 
   const world = new Container();
   const backdrop = new Graphics();
@@ -115,7 +147,36 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
   // The hair colour on screen, which fades towards whatever colour the state asks for.
   let fade: ColourFade | undefined;
 
+  // Idle life: now and then she blinks, and she breathes, a gentle lift of a couple of pixels.
+  const eyes = { blink: 0 };
+  const breath = { v: 0 };
+  let blinkTimer: gsap.core.Tween | undefined;
+  let blinkTween: gsap.core.Timeline | undefined;
+  let epoch = 0;
+
+  function scheduleBlink(): void {
+    blinkTimer = gsap.delayedCall(2.4 + Math.random() * 3, () => {
+      blinkTween = gsap
+        .timeline({ onUpdate: draw, onComplete: scheduleBlink })
+        .to(eyes, { blink: 1, duration: 0.07, ease: 'power1.in' })
+        .to(eyes, { blink: 0, duration: 0.11, ease: 'power1.out' });
+    });
+  }
+
+  function applyBreath(): void {
+    const y = Math.round(breath.v * 5) / 5;
+    if (y === character.y) return;
+    character.y = guide.y = washG.y = y;
+    markDirty();
+  }
+
+  if (idle) {
+    scheduleBlink();
+    gsap.to(breath, { v: 2.2, duration: 2.1, ease: 'sine.inOut', yoyo: true, repeat: -1, onUpdate: applyBreath });
+  }
+
   function layout(): void {
+    markDirty();
     const w = app.screen.width;
     const h = app.screen.height;
     // Fit the character box to the host, anchoring it to the bottom so the gown always sits on the edge.
@@ -126,10 +187,16 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
 
   function draw(): void {
     if (destroyed || !state || !fade) return;
+    markDirty();
     paintNow = fade.paint();
     // Wet hair is darker; it only shows at the sink, as she is towelled off before the other stages.
     const wet = state.stage === 'wash' ? levels.wet : 0;
-    drawCharacter(character, state, turn.phi, locks, wet > 0.005 ? dim(paintNow, 1 - 0.24 * wet) : paintNow);
+    const t = performance.now();
+    drawCharacter(character, state, turn.phi, locks, wet > 0.005 ? dim(paintNow, 1 - 0.24 * wet) : paintNow, eyes.blink);
+    if (stats) {
+      stats.draws++;
+      stats.drawMs += performance.now() - t;
+    }
     drawGuide();
     drawWash();
     drawFx();
@@ -164,6 +231,7 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
   }
 
   function drawWash(): void {
+    markDirty();
     const ctx = fxContext();
     if (!ctx || !state || state.stage !== 'wash') {
       washG.clear();
@@ -246,6 +314,7 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
   }
 
   function drawFx(): void {
+    markDirty();
     fx.clear();
     drawClippings(fx, clippings, fall.t);
     drawSparks(fx, sparks, sparkClock.t);
@@ -429,6 +498,15 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
       drawnScene = scene;
     }
 
+    // A reset puts everything back at once, with no scissors and no easing.
+    if (next.epoch !== epoch) {
+      epoch = next.epoch;
+      finishCut();
+      gsap.killTweensOf(look);
+      lookTarget = undefined;
+      shown = undefined;
+    }
+
     applyLook(next);
 
     // A different character gets a fresh head of hair at once; a change of cut goes through the scissors.
@@ -532,9 +610,41 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
     return regionOfAzimuth(best);
   }
 
+  /** Render the design box (head, shoulders and salon) at the fixed photo size, leaving the controls and effects out. */
+  async function photo(): Promise<Blob> {
+    if (destroyed) throw new Error('The salon is closed');
+    const target = RenderTexture.create({ width: PHOTO_WIDTH, height: PHOTO_HEIGHT, resolution: 1, antialias: true });
+    const was = { scale: world.scale.x, x: world.x, y: world.y, blink: eyes.blink, guide: guide.visible, fx: fx.visible, cy: character.y };
+    try {
+      // Show her as she'd pose: eyes open, no breath, no markers, no scissors or sparks.
+      eyes.blink = 0;
+      character.y = guide.y = washG.y = 0;
+      guide.visible = false;
+      fx.visible = false;
+      draw();
+      world.scale.set(PHOTO_WIDTH / DESIGN_W);
+      world.position.set(0, 0);
+      app.renderer.render({ container: world, target, clear: true, clearColor: [1, 1, 1, 1] });
+      const canvas = app.renderer.extract.canvas({ target, resolution: 1 }) as HTMLCanvasElement;
+      return await new Promise<Blob>((resolve, reject) =>
+        canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('The photo could not be made'))), 'image/png'),
+      );
+    } finally {
+      world.scale.set(was.scale);
+      world.position.set(was.x, was.y);
+      eyes.blink = was.blink;
+      guide.visible = was.guide;
+      fx.visible = was.fx;
+      character.y = guide.y = washG.y = was.cy;
+      target.destroy(true);
+      draw();
+    }
+  }
+
   return {
     render,
     regionAt,
+    photo,
     washHit,
     setDragging(on: boolean) {
       dragging = on;
@@ -546,6 +656,10 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
       if (tickerOn) gsap.ticker.remove(tick);
       tickerOn = false;
       updateWashSound(null, 0);
+      cancelAnimationFrame(raf);
+      blinkTimer?.kill();
+      blinkTween?.kill();
+      gsap.killTweensOf(breath);
       snip?.kill();
       gsap.killTweensOf(look);
       gsap.killTweensOf(sparkClock);

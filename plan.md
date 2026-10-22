@@ -13,8 +13,9 @@ Based on `intent.md`. Decisions below were confirmed by the owner.
 | 2 Colouring | Done (feedback applied; you asked to move on) |
 | 3 Cutting | Done (you asked to move on) |
 | 4 Washing | Done (you asked to move on) |
-| 5 Styling | **Built, awaiting your feedback** |
-| 6 to 7 | Not started |
+| 5 Styling | Done (you asked to move on) |
+| 6 Photo export and polish | **Built, awaiting your feedback** |
+| 7 Release | Not started |
 
 Stage 2 notes (decisions made while building):
 - Colouring has three modes: one colour, left and right (as you see Isla from the front: Left is the screen-left), and ombre (roots to tips).
@@ -32,6 +33,16 @@ Stage 3 notes (decisions made while building):
 - A white dot marks the end of each visible lock in the chosen region, so you can see what you are about to cut. If the region faces away, the panel says to turn Isla round.
 - Seams between regions already blend smoothly (the reach grades between region lengths), so mixed cuts such as a long Left with a cropped Right read as one haircut.
 - Checked in a real browser: controls, tap-to-select in every view, the snip stepped through by exact time (hair intact until the second snip, gone after), reduced motion, growing, and button mashing; plus a contact sheet of mixed cuts from all four views.
+
+Stage 6 notes (what is built):
+- **Camera button**: takes a photo of Isla and the salon backdrop in the current view, head and shoulders in the black gown, with no buttons, markers, scissors or messages in it. Always 1080 x 1350 (4:5) whatever the screen size or orientation, and named for the view and time (for example isla-front-2026-10-21-0730.png). It plays a flash and shutter sound, downloads the file, and shows a short "Photo saved" message. On iPhones and iPads it opens the share sheet instead (the dependable way to save a picture there), falling back to a download if sharing fails.
+- **Start over** button (recycle icon): two taps, so a stray touch can't wipe the hair. It puts hair, colour, cut, style and washing back to the start at once (no scissors or fades) and keeps your stage, view and sound setting.
+- **Idle life**: she blinks every few seconds and breathes with a gentle lift. Both stop with reduced motion.
+- **Sound**: shutter, plus the existing snip, boing, spray, water and foam sounds. The mute choice is now remembered between visits. All sound is synthesised, no files.
+- **Reduced motion**: no idle animation, no flash, instant colour, cut, style and view changes.
+- **Accessibility**: an automated audit (axe, WCAG 2 A and AA plus best practice) finds no problems on any stage. Fixed this stage: a hidden page heading, a darker pink for small text, and pinch-zoom is no longer blocked (double-tap zoom still is). Every control is at least 44px with an accessible name.
+- **Performance**: the picture is only redrawn when something changes. An idle salon draws about 8 frames a second (mostly the breathing) instead of 60, and none at all with reduced motion. Rebuilding Isla takes about 1.5 ms on the test machine. The whole app is about 130 KB compressed.
+- Checked in a real browser: the photo (size, name, content, no interface in it, same size in landscape, other views), start over, remembered mute, blink, idle cost, reduced motion; plus the accessibility audit and every earlier check. Test pages can add ?still to freeze the idle animation.
 
 Stage 5 notes (what is built):
 - Styling has a Curl row (Straight, Waves, Curls, Tight curls, each with a little head showing the waviness) and a Product row (None, Spiky, Flat). One product at a time; curl and product combine freely. Every button is at least 44px.

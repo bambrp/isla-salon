@@ -7,7 +7,9 @@ import {
   sceneFor,
   setColour,
   setColourMode,
+  resetSalon,
   setCurl,
+  setLength,
   setStyleProduct,
   VIEWS,
 } from './state';
@@ -108,5 +110,30 @@ describe('styling actions', () => {
     setCurl(0);
     setStyleProduct('none');
     expect(get(salon)).toBe(before);
+  });
+});
+
+describe('resetting', () => {
+  beforeEach(() => salon.set(initialState()));
+
+  it('puts the hair back but keeps the stage, the view and the sound setting', () => {
+    setCurl(3);
+    setStyleProduct('flat');
+    setColour('a', '#ff0000');
+    setLength('all', 'short3');
+    salon.update((s) => ({ ...s, stage: 'style', view: 'back', audio: { muted: true } }));
+    resetSalon();
+    const s = get(salon);
+    expect(s.hair).toEqual(initialState().hair);
+    expect(s.stage).toBe('style');
+    expect(s.view).toBe('back');
+    expect(s.audio.muted).toBe(true);
+  });
+
+  it('counts resets, so the scene can tell a reset from an ordinary change', () => {
+    expect(get(salon).epoch).toBe(0);
+    resetSalon();
+    resetSalon();
+    expect(get(salon).epoch).toBe(2);
   });
 });

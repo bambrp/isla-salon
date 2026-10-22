@@ -5,6 +5,7 @@
     setStage,
     rotateView,
     toggleMute,
+    resetSalon,
     selectCutTarget,
     selectProduct,
     setTemperature,
@@ -13,6 +14,8 @@
   } from './state';
   import { createScene, type SceneHandle } from './render/scene';
   import StagePanel from './StagePanel.svelte';
+  import { playShutter } from './audio';
+  import { photoName, savePhoto } from './photo';
 
   const LABELS: Record<Stage, { text: string; icon: string }> = {
     wash: { text: 'Wash', icon: '🚿' },
@@ -82,6 +85,63 @@
     scene?.setDragging(false);
   }
 
+  // A short message at the bottom of the picture, read out to screen readers too.
+  let message = '';
+  let messageTimer: ReturnType<typeof setTimeout> | undefined;
+  function say(text: string, seconds = 3): void {
+    message = text;
+    clearTimeout(messageTimer);
+    messageTimer = setTimeout(() => (message = ''), seconds * 1000);
+  }
+
+  function reducedMotion(): boolean {
+    try {
+      return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    } catch {
+      return false;
+    }
+  }
+
+  // The camera: a flash and a shutter, then the picture alone (no controls) is downloaded, or shared on iPhones.
+  let busy = false;
+  let flash = false;
+  async function takePhoto(): Promise<void> {
+    if (busy || !scene) return;
+    busy = true;
+    playShutter();
+    if (!reducedMotion()) {
+      flash = true;
+      setTimeout(() => (flash = false), 260);
+    }
+    try {
+      const blob = await scene.photo();
+      const result = await savePhoto(blob, photoName($salon.view));
+      if (result === 'downloaded') say('Photo saved to your downloads.');
+      else if (result === 'shared') say('Photo ready to save.');
+    } catch {
+      say("Sorry, the photo didn't work. Please try again.", 4);
+    } finally {
+      busy = false;
+    }
+  }
+
+  // Starting over wipes the hair, so it takes two taps: the first asks, the second does it.
+  let confirmReset = false;
+  let confirmTimer: ReturnType<typeof setTimeout> | undefined;
+  function startOver(): void {
+    if (!confirmReset) {
+      confirmReset = true;
+      say('Tap start over again to put Isla back as she was.', 4);
+      clearTimeout(confirmTimer);
+      confirmTimer = setTimeout(() => (confirmReset = false), 4000);
+      return;
+    }
+    clearTimeout(confirmTimer);
+    confirmReset = false;
+    resetSalon();
+    say('Isla is back as she was.');
+  }
+
   const viewLabel: Record<string, string> = {
     front: 'front',
     left: 'left side',
@@ -91,6 +151,7 @@
 </script>
 
 <main class="app">
+  <h1 class="sr-only">Isla's Salon</h1>
   <nav class="stages" aria-label="Salon stages">
     {#each STAGES as stage}
       <button
@@ -124,7 +185,7 @@
       <button class="round" on:click={rotateView} aria-label="Rotate view. Currently showing the {viewLabel[$salon.view]}">
         <span aria-hidden="true">🔄</span>
       </button>
-      <button class="round" aria-label="Take a photo (coming soon)" disabled>
+      <button class="round" on:click={takePhoto} disabled={!scene || busy} aria-label="Take a photo">
         <span aria-hidden="true">📷</span>
       </button>
       <button
@@ -135,13 +196,37 @@
       >
         <span aria-hidden="true">{$salon.audio.muted ? '🔇' : '🔊'}</span>
       </button>
+      <button
+        class="round"
+        class:confirm={confirmReset}
+        on:click={startOver}
+        aria-label={confirmReset ? 'Confirm start over' : 'Start over'}
+      >
+        <span aria-hidden="true">{confirmReset ? '❓' : '♻️'}</span>
+      </button>
     </div>
+
+    <div class="flash" class:on={flash} aria-hidden="true"></div>
+    <p class="toast" class:show={message !== ''} role="status" aria-live="polite">{message}</p>
   </section>
 
   <StagePanel />
 </main>
 
 <style>
+  /* Read by screen readers, invisible on screen. */
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
   .app {
     height: 100dvh;
     display: grid;
@@ -228,6 +313,55 @@
   .round:active:not(:disabled) {
     transform: translateY(2px);
     box-shadow: 0 1px 0 var(--ink);
+  }
+
+  .round.confirm {
+    background: var(--sun);
+  }
+
+  .flash {
+    position: absolute;
+    inset: 0;
+    background: #fff;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .flash.on {
+    animation: flash 0.26s ease-out;
+  }
+
+  @keyframes flash {
+    from {
+      opacity: 0.85;
+    }
+    to {
+      opacity: 0;
+    }
+  }
+
+  .toast {
+    position: absolute;
+    left: 50%;
+    bottom: 12px;
+    transform: translateX(-50%);
+    max-width: calc(100% - 24px);
+    margin: 0;
+    padding: 8px 14px;
+    background: var(--cream);
+    border: var(--outline);
+    border-radius: 999px;
+    box-shadow: 0 3px 0 var(--ink);
+    font-weight: 800;
+    font-size: 0.85rem;
+    text-align: center;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  .toast.show {
+    opacity: 1;
   }
 
   .round:disabled {

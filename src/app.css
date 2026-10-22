@@ -1,7 +1,7 @@
 :root {
   --ink: #1d1030;
   --pink: #ff6fb1;
-  --pink-deep: #d6368a;
+  --pink-deep: #c02479;
   --sky: #5ec8ff;
   --sun: #ffd84a;
   --mint: #4fe3b5;
@@ -20,6 +20,8 @@
 html,
 body {
   margin: 0;
+  /* Double-tap must not zoom the page; pinching still can. */
+  touch-action: manipulation;
   height: 100%;
   overflow: hidden;
   background: var(--pink);

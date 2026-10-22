@@ -127,19 +127,26 @@ function drawHead(g: Graphics, skin: number, phi: number): void {
   celEllipse(g, HEAD.cx, HEAD.cy, hw, HEAD.ry, skin, { inset: 9 });
 }
 
-function drawEye(g: Graphics, az: number, phi: number, iris: number): void {
+function drawEye(g: Graphics, az: number, phi: number, iris: number, blink: number): void {
   const p = surface(az, 6, 0.5);
   const vis = facing(p, phi);
   if (vis < 0.12) return;
   const kx = Math.pow(vis, 0.7);
   const { sx, sy } = project(p.x, p.y, p.z, phi);
   const w = 13 * kx;
-  g.ellipse(sx, sy, w, 16).fill(0xffffff).stroke({ width: 3, color: INK });
+  if (blink >= 0.75) {
+    // Eyes shut: a curved lash line where the eye was.
+    g.moveTo(sx - w, sy + 1).quadraticCurveTo(sx, sy + 9, sx + w, sy + 1).stroke({ width: 3.5, color: INK, cap: 'round' });
+    return;
+  }
+  const open = 1 - blink * 0.9;
+  g.ellipse(sx, sy + 16 * (1 - open) * 0.5, w, 16 * open).fill(0xffffff).stroke({ width: 3, color: INK });
   // The gaze runs straight ahead, which in screen space is towards the way the face points.
   const gaze = -Math.sin(phi) * w * 0.35;
-  g.ellipse(sx + gaze, sy + 2, 9 * kx, 9).fill(iris);
-  g.ellipse(sx + gaze, sy + 2, 4.5 * kx, 4.5).fill(INK);
-  g.ellipse(sx + gaze - 3 * kx, sy - 3, 3 * kx, 3).fill(0xffffff);
+  const cy = sy + 2 + 16 * (1 - open) * 0.5;
+  g.ellipse(sx + gaze, cy, 9 * kx, 9 * open).fill(iris);
+  g.ellipse(sx + gaze, cy, 4.5 * kx, 4.5 * open).fill(INK);
+  g.ellipse(sx + gaze - 3 * kx, cy - 5 * open, 3 * kx, 3 * open).fill(0xffffff);
 }
 
 function drawBrow(g: Graphics, side: number, phi: number, colour: number): void {
@@ -196,11 +203,11 @@ function drawNose(g: Graphics, skin: number, phi: number): void {
   }
 }
 
-function drawFace(g: Graphics, state: SalonState, phi: number, paint: HairPaint): void {
+function drawFace(g: Graphics, state: SalonState, phi: number, paint: HairPaint, blink: number): void {
   const { skin, eyes } = state.character;
   drawCheeks(g, phi);
   for (const side of [-1, 1] as const) {
-    drawEye(g, side * 23 * DEG, phi, eyes);
+    drawEye(g, side * 23 * DEG, phi, eyes, blink);
     // Each brow is a darker shade of the root colour on its own side of the head.
     drawBrow(g, side, phi, shade(paint.root(side), 0.6));
   }
@@ -242,6 +249,7 @@ export function drawCharacter(
   phi: number,
   locks: Lock[],
   paint: HairPaint,
+  blink = 0,
 ): void {
   g.clear();
   const { skin } = state.character;
@@ -263,7 +271,7 @@ export function drawCharacter(
   drawEars(g, skin, phi, false);
   drawHead(g, skin, phi);
   drawEars(g, skin, phi, true);
-  drawFace(g, state, phi, paint);
+  drawFace(g, state, phi, paint, blink);
 
   drawLocks(g, front, bandsOf);
 

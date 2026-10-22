@@ -49,6 +49,8 @@ export interface SalonState {
   /** The washing controls: water settings, the product on the shelf that is selected, and what the hold buttons are doing. */
   wash: { temperature: number; pressure: number; product: Product; applying: Applying };
   audio: { muted: boolean };
+  /** Goes up by one each time the salon is reset, so the scene knows to change at once instead of animating. */
+  epoch: number;
 }
 
 export const ISLA: CharacterDef = {
@@ -80,6 +82,7 @@ export function initialState(character: CharacterDef = ISLA): SalonState {
     },
     wash: { temperature: 0.5, pressure: 0.5, product: 'mint', applying: null },
     audio: { muted: false },
+    epoch: 0,
   };
 }
 
@@ -93,7 +96,23 @@ export function sceneFor(stage: Stage): 'sink' | 'mirror' {
   return stage === 'wash' ? 'sink' : 'mirror';
 }
 
-export const salon = writable<SalonState>(initialState());
+const MUTE_KEY = 'islas-salon-muted';
+
+/** Whether sound was switched off last time: kept in the browser, and fine without it (private windows, blocked storage). */
+function storedMute(): boolean {
+  try {
+    return window.localStorage.getItem(MUTE_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function initialStore(): SalonState {
+  const s = initialState();
+  return storedMute() ? { ...s, audio: { muted: true } } : s;
+}
+
+export const salon = writable<SalonState>(initialStore());
 
 export function setStage(stage: Stage): void {
   // Leaving the sink lets go of the water, so nothing keeps running unseen.
@@ -201,6 +220,22 @@ export function setStyleProduct(product: 'none' | 'spiky' | 'flat'): void {
   salon.update((s) => (s.hair.product === product ? s : { ...s, hair: { ...s.hair, product } }));
 }
 
+/**
+ * Start over with Isla as she was at the start: her hair, colour, cut, style and the washing all go back. The stage
+ * you are on, the view and the sound setting stay as they are.
+ */
+export function resetSalon(): void {
+  salon.update((s) => ({ ...initialState(s.character), stage: s.stage, view: s.view, audio: s.audio, epoch: s.epoch + 1 }));
+}
+
 export function toggleMute(): void {
-  salon.update((s) => ({ ...s, audio: { muted: !s.audio.muted } }));
+  salon.update((s) => {
+    const muted = !s.audio.muted;
+    try {
+      window.localStorage.setItem(MUTE_KEY, muted ? '1' : '0');
+    } catch {
+      /* remembering is a nicety */
+    }
+    return { ...s, audio: { muted } };
+  });
 }

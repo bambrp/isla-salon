@@ -265,3 +265,24 @@ export function playPat(): void {
   osc.start(t);
   osc.stop(t + 0.18);
 }
+
+/** A camera shutter: two quick clicks. */
+export function playShutter(): void {
+  const c = context();
+  if (!c) return;
+  const t = c.currentTime;
+  for (const [offset, freq] of [[0, 2600], [0.055, 1900]] as const) {
+    const src = c.createBufferSource();
+    src.buffer = noiseBuffer(c);
+    const filter = c.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.value = freq;
+    filter.Q.value = 1.4;
+    const gain = c.createGain();
+    gain.gain.setValueAtTime(0.0001, t + offset);
+    gain.gain.exponentialRampToValueAtTime(0.5, t + offset + 0.004);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + offset + 0.04);
+    src.connect(filter).connect(gain).connect(c.destination);
+    src.start(t + offset, 0, 0.06);
+  }
+}
