@@ -9,10 +9,10 @@ import type { Product } from './wash';
 export const SPRAYER = { x: 282, y: 116 } as const;
 export const SPRAY_TARGET = { x: 214, y: 184 } as const;
 
-/** The wall-mounted temperature dial. Press it and drag up for hotter, down for colder. */
-export const DIAL = { x: 352, y: 318, r: 24 } as const;
+/** The wall-mounted temperature dial, drawn 1.5 times bigger than its first size (radius 24) so it is easy to hit. Press it and drag up for hotter, down for colder. */
+export const DIAL = { x: 342, y: 320, r: 36 } as const;
 /** How far the dial can be pressed from its centre and still count (a generous finger target). */
-export const DIAL_HIT = 38;
+export const DIAL_HIT = 57;
 
 /** The wall bottles are drawn this many times bigger than ordinary props, so they plainly look like things to tap. */
 export const BOTTLE_SCALE = 1.5;

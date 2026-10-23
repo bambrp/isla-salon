@@ -2,7 +2,7 @@ import { get } from 'svelte/store';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { DEG, HEAD } from './geometry';
 import { FRONT_SECTOR, reachAt, type Lengths } from './hair';
-import { BOTTLE_HIT, BOTTLE_SCALE, DIAL, SHELF_BOARD, SHELF_PRODUCTS, bottleHeight, onDial, productAt } from './sinkLayout';
+import { DIAL_HIT, BOTTLE_HIT, BOTTLE_SCALE, DIAL, SHELF_BOARD, SHELF_PRODUCTS, bottleHeight, onDial, productAt } from './sinkLayout';
 import { BUBBLE_COUNT, foamLayout } from './washfx';
 import {
   commitWash,
@@ -89,6 +89,12 @@ describe('the sink scene', () => {
     expect(SHELF_BOARD.x + SHELF_BOARD.width).toBeLessThan(HEAD.cx - HEAD.rx);
   });
 
+  it('draws the dial 50% bigger than before (radius 24 became 36), with the target grown to match', () => {
+    expect(DIAL.r).toBe(24 * 1.5);
+    expect(DIAL_HIT).toBe(38 * 1.5);
+    expect(DIAL.x + DIAL.r + 9).toBeLessThan(400);
+  });
+
   it('finds the dial with a generous target', () => {
     expect(onDial(DIAL.x, DIAL.y)).toBe(true);
     expect(onDial(DIAL.x + 30, DIAL.y)).toBe(true);
@@ -98,7 +104,7 @@ describe('the sink scene', () => {
 
   it('keeps the dial clear of the bottles and the head', () => {
     for (const b of Object.values(SHELF_PRODUCTS)) expect(Math.abs(DIAL.x - b.x)).toBeGreaterThan(100);
-    expect(DIAL.x - 38).toBeGreaterThan(HEAD.cx + HEAD.rx);
+    expect(DIAL.x - DIAL_HIT).toBeGreaterThan(HEAD.cx + HEAD.rx);
   });
 });
 

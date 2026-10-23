@@ -472,15 +472,15 @@ export class WashFx {
     // Lever: points from the centre round the scale, cold on the left to hot on the right.
     const t = clamp(c.temperature, 0, 1);
     const ang = (-125 + 250 * t - 90) * DEG;
-    const lx = DIAL.x + Math.cos(ang) * (DIAL.r - 3);
-    const ly = DIAL.y + Math.sin(ang) * (DIAL.r - 3);
-    g.circle(DIAL.x, DIAL.y, DIAL.r - 5).fill(0xf4f8fb).stroke({ width: 3, color: INK });
-    g.moveTo(DIAL.x, DIAL.y).lineTo(lx, ly).stroke({ width: 10, color: INK, cap: 'round' });
-    g.moveTo(DIAL.x, DIAL.y).lineTo(lx, ly).stroke({ width: 5.5, color: dialColour(t), cap: 'round' });
-    g.circle(DIAL.x, DIAL.y, 4.5).fill(0xffd84a).stroke({ width: 2, color: INK });
+    const lx = DIAL.x + Math.cos(ang) * (DIAL.r - 4.5);
+    const ly = DIAL.y + Math.sin(ang) * (DIAL.r - 4.5);
+    g.circle(DIAL.x, DIAL.y, DIAL.r - 7.5).fill(0xf4f8fb).stroke({ width: 4.5, color: INK });
+    g.moveTo(DIAL.x, DIAL.y).lineTo(lx, ly).stroke({ width: 15, color: INK, cap: 'round' });
+    g.moveTo(DIAL.x, DIAL.y).lineTo(lx, ly).stroke({ width: 8.25, color: dialColour(t), cap: 'round' });
+    g.circle(DIAL.x, DIAL.y, 6.75).fill(0xffd84a).stroke({ width: 3, color: INK });
 
     if (c.dragging) {
-      const x = DIAL.x - 62;
+      const x = DIAL.x - 66;
       const top = DIAL.y - 70;
       const bottom = DIAL.y + 70;
       g.roundRect(x - 11, top - 8, 22, bottom - top + 16, 11).fill(0xffffff).stroke({ width: 3, color: INK });

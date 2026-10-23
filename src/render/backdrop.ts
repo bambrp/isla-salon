@@ -75,15 +75,15 @@ function drawSink(g: Graphics): void {
   }
 
   // Temperature dial on the wall: a chrome ring with a blue to red scale. The washing layer draws the lever on top.
-  g.circle(DIAL.x, DIAL.y, DIAL.r + 6).fill(0xdfe9f0).stroke({ width: OUTLINE, color: INK });
+  g.circle(DIAL.x, DIAL.y, DIAL.r + 9).fill(0xdfe9f0).stroke({ width: OUTLINE, color: INK });
   for (let i = 0; i < 12; i++) {
     const t = i / 11;
     const a0 = (-125 + 250 * (i / 12) - 90) * (Math.PI / 180);
     const a1 = (-125 + 250 * ((i + 1) / 12) - 90) * (Math.PI / 180);
-    const r = DIAL.r + 1;
+    const r = DIAL.r + 1.5;
     g.moveTo(DIAL.x + Math.cos(a0) * r, DIAL.y + Math.sin(a0) * r)
       .arc(DIAL.x, DIAL.y, r, a0, a1)
-      .stroke({ width: 5, color: dialColour(t) });
+      .stroke({ width: 7.5, color: dialColour(t) });
   }
 
   // Basin: a wide white bowl behind the shoulders.
