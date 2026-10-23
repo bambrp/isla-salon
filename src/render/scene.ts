@@ -14,7 +14,7 @@ import { NO_LOOK, lookOf, sameLook, type Look } from './look';
 import { SPARK_LIFE, drawSparks, mistSpray, starBurst, type Spark } from './stylefx';
 import { CLIPPING_LIFE, drawClippings, drawScissors, type Clipping } from './scissors';
 import { INK, shade } from './style';
-import { onDial, productAt } from './sinkLayout';
+import { controlAt, productAt } from './sinkLayout';
 import { isShampoo, isShiny, sameLevels, stepWash, temperatureBand, type Product, type WashLevels } from './wash';
 import { WashFx, foamLayout, type Bubble, type FxContext } from './washfx';
 import type { HairPaint } from './colour';
@@ -24,10 +24,10 @@ export interface SceneHandle {
   render(state: SalonState): void;
   /** The region of the head at a point on the page (client coordinates), or undefined if the point isn't on her head or hair. */
   regionAt(clientX: number, clientY: number): Region | undefined;
-  /** What a press at a page point lands on in the sink scene: the temperature dial, a bottle on the shelf, or nothing. */
-  washHit(clientX: number, clientY: number): { kind: 'dial' } | { kind: 'product'; product: Product } | undefined;
-  /** Show or hide the temperature scale while a finger is dragging the dial. */
-  setDragging(on: boolean): void;
+  /** What a press at a page point lands on in the sink scene: the temperature dial, the pressure tap, a bottle on the shelf, or nothing. */
+  washHit(clientX: number, clientY: number): { kind: 'dial' | 'tap' } | { kind: 'product'; product: Product } | undefined;
+  /** Show (or hide, with null) the scale of the wall control a finger is dragging. */
+  setDragging(on: 'dial' | 'tap' | null): void;
   /** A photo of Isla and the salon as she is now: the picture only, no controls, always the same size and shape. */
   photo(): Promise<Blob>;
   destroy(): void;
@@ -139,7 +139,7 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
   let bubbles: Bubble[] = [];
   let tickerOn = false;
   let sinceCommit = 0;
-  let dragging = false;
+  let dragging: 'dial' | 'tap' | null = null;
   let wasApplying = false;
 
   // The scissors and the clipped hair. Both are drawn from a few numbers that the animation tweens.
@@ -628,10 +628,11 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
     return { x: (clientX - rect.left - world.x) / scale, y: (clientY - rect.top - world.y) / scale };
   }
 
-  function washHit(clientX: number, clientY: number): { kind: 'dial' } | { kind: 'product'; product: Product } | undefined {
+  function washHit(clientX: number, clientY: number): { kind: 'dial' | 'tap' } | { kind: 'product'; product: Product } | undefined {
     const p = toDesign(clientX, clientY);
     if (!p || !state || state.stage !== 'wash') return undefined;
-    if (onDial(p.x, p.y)) return { kind: 'dial' };
+    const control = controlAt(p.x, p.y);
+    if (control) return { kind: control };
     const product = productAt(p.x, p.y);
     return product ? { kind: 'product', product } : undefined;
   }
@@ -700,7 +701,7 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
     regionAt,
     photo,
     washHit,
-    setDragging(on: boolean) {
+    setDragging(on: 'dial' | 'tap' | null) {
       dragging = on;
       drawWash();
     },

@@ -8,6 +8,7 @@
     resetSalon,
     selectCutTarget,
     selectProduct,
+    setPressure,
     setTemperature,
     STAGES,
     type Stage,
@@ -59,7 +60,7 @@
   }
 
   // In the washing stage, tap a bottle on the shelf to choose it, or press the wall dial and drag up for hotter, down for colder.
-  let dial: { id: number; startY: number; startTemp: number } | undefined;
+  let dial: { id: number; kind: 'dial' | 'tap'; startY: number; start: number } | undefined;
 
   function pressHost(e: PointerEvent): void {
     if ($salon.stage !== 'wash') return;
@@ -75,20 +76,32 @@
     } catch {
       /* capture is a nicety */
     }
-    dial = { id: e.pointerId, startY: e.clientY, startTemp: $salon.wash.temperature };
-    scene?.setDragging(true);
+    dial = {
+      id: e.pointerId,
+      kind: hit.kind,
+      startY: e.clientY,
+      start: hit.kind === 'tap' ? $salon.wash.pressure : $salon.wash.temperature,
+    };
+    scene?.setDragging(hit.kind);
   }
 
   function dragHost(e: PointerEvent): void {
     if (!dial || e.pointerId !== dial.id) return;
-    // Dragging up by about half the picture's height goes from cold to hot.
-    setTemperature(dial.startTemp + (dial.startY - e.clientY) / Math.max(120, host.clientHeight * 0.5));
+    // Dragging up by about half the picture's height goes from cold to hot, or from off to full pressure.
+    const moved = (dial.startY - e.clientY) / Math.max(120, host.clientHeight * 0.5);
+    if (dial.kind === 'tap') {
+      // Near the bottom the tap snaps shut, like a real one.
+      const p = dial.start + moved;
+      setPressure(p < 0.06 ? 0 : p);
+    } else {
+      setTemperature(dial.start + moved);
+    }
   }
 
   function releaseHost(e: PointerEvent): void {
     if (!dial || e.pointerId !== dial.id) return;
     dial = undefined;
-    scene?.setDragging(false);
+    scene?.setDragging(null);
   }
 
   // A short message at the bottom of the picture, read out to screen readers too.

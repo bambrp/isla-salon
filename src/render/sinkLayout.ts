@@ -17,6 +17,13 @@ export const DIAL_HIT = 57;
 /** The wall bottles are drawn this many times bigger than ordinary props, so they plainly look like things to tap. */
 export const BOTTLE_SCALE = 1.5;
 
+/**
+ * The wall tap for the water pressure, above the dial. It works like a real tap: its lowest setting is off, then
+ * low pressure rising to high. Press it and drag up for more, or drag right down to snap it off.
+ */
+export const TAP = { x: 316, y: 238, r: 22 } as const;
+export const TAP_HIT = 36;
+
 /** Bottles on the wall shelves. Tapping one chooses it. */
 export const SHELF_PRODUCTS: Record<Product, { x: number; baseY: number; tall: number; colour: number }> = {
   mint: { x: 24, baseY: 232, tall: 1.2, colour: 0x4fe3b5 },
@@ -49,6 +56,19 @@ export function productAt(x: number, y: number): Product | undefined {
     }
   }
   return best;
+}
+
+/** True if a design-space point is on the pressure tap. */
+export function onTap(x: number, y: number): boolean {
+  return Math.hypot(x - TAP.x, y - TAP.y) <= TAP_HIT;
+}
+
+/** Which wall control a design-space point presses: the nearer one where the two targets overlap. */
+export function controlAt(x: number, y: number): 'dial' | 'tap' | undefined {
+  const dial = onDial(x, y) ? Math.hypot(x - DIAL.x, y - DIAL.y) : Infinity;
+  const tap = onTap(x, y) ? Math.hypot(x - TAP.x, y - TAP.y) : Infinity;
+  if (dial === Infinity && tap === Infinity) return undefined;
+  return tap <= dial ? 'tap' : 'dial';
 }
 
 /** True if a design-space point is on the temperature dial. */

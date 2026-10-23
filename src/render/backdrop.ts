@@ -1,6 +1,6 @@
 import type { Graphics } from 'pixi.js';
 import { INK, OUTLINE } from './style';
-import { BOTTLE_SCALE, DIAL, SHELF_BOARD, SHELF_PRODUCTS, SPRAYER, SPRAY_TARGET, bottleHeight } from './sinkLayout';
+import { BOTTLE_SCALE, DIAL, TAP, SHELF_BOARD, SHELF_PRODUCTS, SPRAYER, SPRAY_TARGET, bottleHeight } from './sinkLayout';
 import type { Product } from './wash';
 import {
   bottle,
@@ -14,11 +14,15 @@ import {
   shelfBoard,
   sprayBottle,
   toolCup,
-  towelStack,
 } from './props';
 
 /** Design space is 400 x 500. The wall is drawn oversized so any screen aspect is covered. */
 const WALL = { x: -600, y: -600, w: 1600, h: 1800 };
+
+/** The angle of the tap handle for a pressure from 0 (off, pointing down and left) to 1 (full, down and right). */
+export function tapAngle(pressure: number): number {
+  return ((135 + 270 * Math.min(1, Math.max(0, pressure))) * Math.PI) / 180;
+}
 
 /** Scale colour at position t along the dial, from icy blue through pale to hot red. */
 export function dialColour(t: number): number {
@@ -46,10 +50,15 @@ function drawSink(g: Graphics): void {
     bottleLabel(g, name, b.x, b.baseY - bottleHeight(b.tall) * 0.45);
   }
 
-  // Wall shelf on the right: towels and a small plant.
-  shelfBoard(g, 304, 262, 92);
-  towelStack(g, 334, 262);
-  plant(g, 376, 262, 0.55, 0xffd84a);
+  // The pressure tap: a chrome plate with a scale of five water drops, off at the bottom left and full at the bottom right.
+  // The washing layer draws the cross handle on top.
+  g.circle(TAP.x, TAP.y, TAP.r + 6).fill(0xdfe9f0).stroke({ width: OUTLINE, color: INK });
+  for (let i = 0; i <= 4; i++) {
+    const a = tapAngle(i / 4);
+    const x = TAP.x + Math.cos(a) * (TAP.r + 0.5);
+    const y = TAP.y + Math.sin(a) * (TAP.r + 0.5);
+    g.circle(x, y, i === 0 ? 2.2 : 1.6 + 0.5 * i).fill(i === 0 ? 0xff4d4d : 0x2d98da).stroke({ width: 1, color: INK });
+  }
 
   // Handheld sprayer on its hose, aimed at the crown of her head. Drawn along +x then turned to point at SPRAY_TARGET.
   const ang = Math.atan2(SPRAY_TARGET.y - SPRAYER.y, SPRAY_TARGET.x - SPRAYER.x);

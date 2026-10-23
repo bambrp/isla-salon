@@ -1,8 +1,8 @@
 import type { Graphics } from 'pixi.js';
 import { DEG, HEAD, clamp, lerp, mulberry32, project, smoothstep } from './geometry';
 import { FRONT_SECTOR, reachAt, type Lengths } from './hair';
-import { DIAL, SHELF_PRODUCTS, SPRAYER, SPRAY_TARGET, bottleHeight } from './sinkLayout';
-import { dialColour } from './backdrop';
+import { DIAL, TAP, SHELF_PRODUCTS, SPRAYER, SPRAY_TARGET, bottleHeight } from './sinkLayout';
+import { dialColour, tapAngle } from './backdrop';
 import { INK } from './style';
 import { isShampoo, isShiny, streamFor, waterLook, type Applying, type Product, type WashLevels } from './wash';
 
@@ -135,8 +135,8 @@ export interface FxContext {
   /** Screen positions where hair ends on the near side, for drips. */
   tips: ReadonlyArray<{ x: number; y: number }>;
   bubbles: Bubble[];
-  /** True while a finger is on the dial, which shows the scale. */
-  dragging: boolean;
+  /** Which wall control a finger is on, which shows its scale. */
+  dragging: 'dial' | 'tap' | null;
 }
 
 const MAX_PARTICLES = 240;
@@ -479,7 +479,33 @@ export class WashFx {
     g.moveTo(DIAL.x, DIAL.y).lineTo(lx, ly).stroke({ width: 8.25, color: dialColour(t), cap: 'round' });
     g.circle(DIAL.x, DIAL.y, 6.75).fill(0xffd84a).stroke({ width: 3, color: INK });
 
-    if (c.dragging) {
+    // The tap's cross handle: lowest setting is off.
+    const ta = tapAngle(c.pressure);
+    for (const arm of [0, 1]) {
+      const a = ta + (arm * Math.PI) / 2;
+      const dx = Math.cos(a) * (TAP.r - 3);
+      const dy = Math.sin(a) * (TAP.r - 3);
+      g.moveTo(TAP.x - dx, TAP.y - dy).lineTo(TAP.x + dx, TAP.y + dy).stroke({ width: 10, color: INK, cap: 'round' });
+      g.moveTo(TAP.x - dx, TAP.y - dy).lineTo(TAP.x + dx, TAP.y + dy).stroke({ width: 5.5, color: arm === 0 ? 0xeaf6ff : 0xc9d6df, cap: 'round' });
+    }
+    g.circle(TAP.x, TAP.y, 5).fill(c.pressure > 0 ? 0x5ec8ff : 0xff4d4d).stroke({ width: 2, color: INK });
+
+    if (c.dragging === 'tap') {
+      const x = TAP.x - 62;
+      const top = TAP.y - 70;
+      const bottom = TAP.y + 70;
+      g.roundRect(x - 11, top - 8, 22, bottom - top + 16, 11).fill(0xffffff).stroke({ width: 3, color: INK });
+      const steps = 10;
+      for (let i = 0; i < steps; i++) {
+        const y0 = lerp(bottom, top, i / steps);
+        const y1 = lerp(bottom, top, (i + 1) / steps);
+        g.rect(x - 5, y1, 10, y0 - y1 + 0.5).fill(i === 0 ? 0xdfe6ea : mixColour(0xd8f3ff, 0x2d98da, i / steps));
+      }
+      g.circle(x, bottom + 2, 3).fill(0xff4d4d);
+      g.circle(x, lerp(bottom, top, clamp(c.pressure, 0, 1)), 9).fill(0xffffff).stroke({ width: 3, color: INK });
+    }
+
+    if (c.dragging === 'dial') {
       const x = DIAL.x - 66;
       const top = DIAL.y - 70;
       const bottom = DIAL.y + 70;
@@ -494,4 +520,10 @@ export class WashFx {
       g.circle(x, my, 9).fill(0xffffff).stroke({ width: 3, color: INK });
     }
   }
+}
+
+/** A blend of two 0xRRGGBB colours, k from 0 (all a) to 1 (all b). */
+function mixColour(a: number, b: number, k: number): number {
+  const ch = (shift: number) => Math.round(((a >> shift) & 255) * (1 - k) + ((b >> shift) & 255) * k);
+  return (ch(16) << 16) | (ch(8) << 8) | ch(0);
 }

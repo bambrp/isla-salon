@@ -19,6 +19,8 @@
   $: wash = $salon.wash;
   $: band = temperatureBand(wash.temperature);
   $: productName = NAMES[wash.product];
+  $: pressureName = wash.pressure === 0 ? 'Off' : wash.pressure < 0.34 ? 'Gentle' : wash.pressure < 0.67 ? 'Medium' : 'Strong';
+  $: tapOff = wash.pressure === 0;
 
   /**
    * Hold to apply. Pressing starts the water or the product and letting go stops it, however the press ends:
@@ -115,14 +117,14 @@
       />
     </label>
     <label class="slider">
-      <span class="name">Pressure <b class="value">{wash.pressure < 0.34 ? 'Gentle' : wash.pressure < 0.67 ? 'Medium' : 'Strong'}</b></span>
+      <span class="name">Water tap <b class="value">{pressureName}</b></span>
       <input
         class="press"
         type="range"
         min="0"
         max="100"
         value={Math.round(wash.pressure * 100)}
-        aria-valuetext={wash.pressure < 0.34 ? 'Gentle' : wash.pressure < 0.67 ? 'Medium' : 'Strong'}
+        aria-valuetext={pressureName}
         on:input={(e) => setPressure(e.currentTarget.valueAsNumber / 100)}
       />
     </label>
@@ -143,8 +145,15 @@
   </div>
 
   <div class="holds">
-    <button class="hold water" class:pressed={wash.applying === 'water'} use:hold={'water'} aria-pressed={wash.applying === 'water'}>
-      <span aria-hidden="true">💧</span> Hold for water
+    <button
+      class="hold water"
+      class:pressed={wash.applying === 'water'}
+      class:off={tapOff}
+      use:hold={'water'}
+      aria-pressed={wash.applying === 'water'}
+      aria-disabled={tapOff}
+    >
+      <span aria-hidden="true">💧</span> {tapOff ? 'Tap is off' : 'Hold for water'}
     </button>
     <button class="hold apply" class:pressed={wash.applying === 'product'} use:hold={'product'} aria-pressed={wash.applying === 'product'}>
       <span aria-hidden="true">{wash.product === 'conditioner' ? '💜' : '🫧'}</span> Hold to apply {productName.toLowerCase()}
@@ -294,6 +303,13 @@
 
   .water {
     background: var(--sky);
+  }
+
+  .water.off {
+    background: #dfe6ea;
+    box-shadow: 0 4px 0 #8d9aa3;
+    border-color: #4a5560;
+    color: #2b3640;
   }
 
   .apply {

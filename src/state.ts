@@ -167,7 +167,12 @@ export function setTemperature(temperature: number): void {
 
 export function setPressure(pressure: number): void {
   const p = Math.min(1, Math.max(0, pressure));
-  salon.update((s) => (s.wash.pressure === p ? s : { ...s, wash: { ...s.wash, pressure: p } }));
+  salon.update((s) => {
+    if (s.wash.pressure === p) return s;
+    // Turning the tap off stops any water that is running.
+    const applying = p === 0 && s.wash.applying === 'water' ? null : s.wash.applying;
+    return { ...s, wash: { ...s.wash, pressure: p, applying } };
+  });
 }
 
 /** Pick the product the apply button uses: one of the three shampoos, or the conditioner. */
@@ -177,7 +182,12 @@ export function selectProduct(product: Product): void {
 
 /** What the hold buttons are doing: running the water, applying the product, or nothing. */
 export function setApplying(applying: Applying): void {
-  salon.update((s) => (s.wash.applying === applying ? s : { ...s, wash: { ...s.wash, applying } }));
+  salon.update((s) => {
+    if (s.wash.applying === applying) return s;
+    // With the tap turned off there is no water to run.
+    if (applying === 'water' && s.wash.pressure === 0) return s;
+    return { ...s, wash: { ...s.wash, applying } };
+  });
 }
 
 /** The hair as the washing simulation left it. */

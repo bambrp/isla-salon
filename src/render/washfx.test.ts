@@ -2,8 +2,9 @@ import { get } from 'svelte/store';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { DEG, HEAD } from './geometry';
 import { FRONT_SECTOR, reachAt, type Lengths } from './hair';
-import { DIAL_HIT, BOTTLE_HIT, BOTTLE_SCALE, DIAL, SHELF_BOARD, SHELF_PRODUCTS, bottleHeight, onDial, productAt } from './sinkLayout';
+import { TAP, TAP_HIT, controlAt, DIAL_HIT, BOTTLE_HIT, BOTTLE_SCALE, DIAL, SHELF_BOARD, SHELF_PRODUCTS, bottleHeight, onDial, productAt } from './sinkLayout';
 import { BUBBLE_COUNT, foamLayout } from './washfx';
+import { tapAngle } from './backdrop';
 import {
   commitWash,
   initialState,
@@ -95,6 +96,27 @@ describe('the sink scene', () => {
     expect(DIAL.x + DIAL.r + 9).toBeLessThan(400);
   });
 
+  it('has a pressure tap above the dial, clear of her head, whose target never swallows the dial\'s centre', () => {
+    expect(TAP.y + TAP.r + 6).toBeLessThan(DIAL.y - DIAL.r - 9);
+    expect(TAP.x - TAP_HIT).toBeGreaterThan(HEAD.cx + HEAD.rx);
+    expect(controlAt(TAP.x, TAP.y)).toBe('tap');
+    expect(controlAt(DIAL.x, DIAL.y)).toBe('dial');
+    expect(controlAt(200, 450)).toBeUndefined();
+    // Where the two targets overlap, the nearer centre wins.
+    for (let y = TAP.y; y <= DIAL.y; y += 2) {
+      const x = (TAP.x + DIAL.x) / 2;
+      const dt = Math.hypot(x - TAP.x, y - TAP.y);
+      const dd = Math.hypot(x - DIAL.x, y - DIAL.y);
+      if (dt <= TAP_HIT && dd <= DIAL_HIT) expect(controlAt(x, y)).toBe(dt <= dd ? 'tap' : 'dial');
+    }
+  });
+
+  it('turns the tap handle from off (down and left) round to full (down and right)', () => {
+    expect(tapAngle(0)).toBeCloseTo((135 * Math.PI) / 180);
+    expect(tapAngle(1)).toBeCloseTo((405 * Math.PI) / 180);
+    expect(tapAngle(0.5)).toBeGreaterThan(tapAngle(0));
+  });
+
   it('finds the dial with a generous target', () => {
     expect(onDial(DIAL.x, DIAL.y)).toBe(true);
     expect(onDial(DIAL.x + 30, DIAL.y)).toBe(true);
@@ -105,6 +127,28 @@ describe('the sink scene', () => {
   it('keeps the dial clear of the bottles and the head', () => {
     for (const b of Object.values(SHELF_PRODUCTS)) expect(Math.abs(DIAL.x - b.x)).toBeGreaterThan(100);
     expect(DIAL.x - DIAL_HIT).toBeGreaterThan(HEAD.cx + HEAD.rx);
+  });
+});
+
+describe('the pressure tap in the store', () => {
+  beforeEach(() => salon.set(initialState()));
+
+  it('gives no water while the tap is off, and the water button does nothing', () => {
+    setPressure(0);
+    setApplying('water');
+    expect(get(salon).wash.applying).toBeNull();
+    setPressure(0.2);
+    setApplying('water');
+    expect(get(salon).wash.applying).toBe('water');
+  });
+
+  it('stops the water the moment the tap is turned off, but leaves product alone', () => {
+    setApplying('water');
+    setPressure(0);
+    expect(get(salon).wash.applying).toBeNull();
+    setApplying('product');
+    setPressure(0);
+    expect(get(salon).wash.applying).toBe('product');
   });
 });
 
