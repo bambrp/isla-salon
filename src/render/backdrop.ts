@@ -1,6 +1,7 @@
 import type { Graphics } from 'pixi.js';
 import { INK, OUTLINE } from './style';
-import { DIAL, SHELF_PRODUCTS, SPRAYER, SPRAY_TARGET } from './sinkLayout';
+import { BOTTLE_SCALE, DIAL, SHELF_BOARD, SHELF_PRODUCTS, SPRAYER, SPRAY_TARGET, bottleHeight } from './sinkLayout';
+import type { Product } from './wash';
 import {
   bottle,
   clippers,
@@ -38,13 +39,12 @@ function drawSink(g: Graphics): void {
   for (let y = -600; y < 1200; y += 50) g.moveTo(WALL.x, y).lineTo(1000, y).stroke({ width: 1.5, color: 0x6fc8e0 });
 
   // Wall shelves on the left: the three shampoos (mint, citrus, tropical), and the conditioner below them.
-  shelfBoard(g, 4, 232, 92);
-  shelfBoard(g, 4, 322, 92);
-  for (const b of Object.values(SHELF_PRODUCTS)) bottle(g, b.x, b.baseY, b.colour, b.tall);
-  // A little heart on the conditioner, so it reads as the creamy one.
-  const c = SHELF_PRODUCTS.conditioner;
-  g.circle(c.x - 3, c.baseY - 20, 3).circle(c.x + 3, c.baseY - 20, 3).fill(0xffffff);
-  g.poly([c.x - 6, c.baseY - 18, c.x + 6, c.baseY - 18, c.x, c.baseY - 11]).fill(0xffffff);
+  shelfBoard(g, SHELF_BOARD.x, 232, SHELF_BOARD.width);
+  shelfBoard(g, SHELF_BOARD.x, 322, SHELF_BOARD.width);
+  for (const [name, b] of Object.entries(SHELF_PRODUCTS) as [Product, (typeof SHELF_PRODUCTS)[Product]][]) {
+    bottle(g, b.x, b.baseY, b.colour, b.tall, BOTTLE_SCALE);
+    bottleLabel(g, name, b.x, b.baseY - bottleHeight(b.tall) * 0.45);
+  }
 
   // Wall shelf on the right: towels and a small plant.
   shelfBoard(g, 304, 262, 92);
@@ -137,6 +137,40 @@ function drawMirror(g: Graphics): void {
 
   // A bigger floor plant in the corner, behind the character.
   plant(g, 372, 500, 1.2, 0x2d98da);
+}
+
+/** The little picture on a bottle's label, centred at (x, y): a mint leaf, an orange segment, a pineapple or a heart. */
+function bottleLabel(g: Graphics, product: Product, x: number, y: number): void {
+  g.roundRect(x - 11, y - 14, 22, 28, 5).fill({ color: 0xffffff, alpha: 0.9 }).stroke({ width: 1.5, color: INK });
+  if (product === 'mint') {
+    // A leaf pointing up and right, with its vein.
+    g.moveTo(x - 6, y + 8)
+      .bezierCurveTo(x - 9, y - 4, x - 1, y - 10, x + 7, y - 9)
+      .bezierCurveTo(x + 9, y - 1, x + 3, y + 8, x - 6, y + 8)
+      .fill(0x2fbf71)
+      .stroke({ width: 1.4, color: INK, join: 'round' });
+    g.moveTo(x - 6, y + 8).lineTo(x + 4, y - 5).stroke({ width: 1.4, color: 0xd9ffe9, cap: 'round' });
+  } else if (product === 'citrus') {
+    // An orange segment: a half disc with its flat edge up, rind outside, spokes inside.
+    const cy = y - 4;
+    g.moveTo(x + 8, cy).arc(x, cy, 8, 0, Math.PI).closePath().fill(0xff9d1c).stroke({ width: 1.4, color: INK, join: 'round' });
+    g.moveTo(x + 5.5, cy).arc(x, cy, 5.5, 0, Math.PI).closePath().fill(0xffc95e);
+    for (const k of [1, 2, 3]) {
+      const a = (k * Math.PI) / 4;
+      g.moveTo(x, cy + 1).lineTo(x + Math.cos(a) * 5.5, cy + Math.sin(a) * 5.5).stroke({ width: 1, color: 0xffffff, cap: 'round' });
+    }
+  } else if (product === 'tropical') {
+    // A pineapple: a yellow body with a criss-cross, and a spiky green crown.
+    for (const dx of [-4, 0, 4]) {
+      g.poly([x + dx - 3, y - 3, x + dx, y - 12, x + dx + 3, y - 3]).fill(0x2fbf71).stroke({ width: 1.2, color: INK, join: 'round' });
+    }
+    g.ellipse(x, y + 4, 7, 9).fill(0xffd23f).stroke({ width: 1.4, color: INK });
+    g.moveTo(x - 4, y - 1).lineTo(x + 4, y + 9).moveTo(x + 4, y - 1).lineTo(x - 4, y + 9).stroke({ width: 1, color: 0xb9791a, cap: 'round' });
+  } else {
+    // The conditioner keeps its heart, so it reads as the creamy one.
+    g.circle(x - 4, y - 3, 4.2).circle(x + 4, y - 3, 4.2).fill(0xff6fb1);
+    g.poly([x - 8, y - 1, x + 8, y - 1, x, y + 9]).fill(0xff6fb1);
+  }
 }
 
 export function drawBackdrop(g: Graphics, scene: 'sink' | 'mirror'): void {

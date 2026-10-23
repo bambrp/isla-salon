@@ -1,7 +1,7 @@
 import type { Graphics } from 'pixi.js';
 import { DEG, HEAD, clamp, lerp, mulberry32, project, smoothstep } from './geometry';
 import { FRONT_SECTOR, reachAt, type Lengths } from './hair';
-import { DIAL, SHELF_PRODUCTS, SPRAYER, SPRAY_TARGET } from './sinkLayout';
+import { DIAL, SHELF_PRODUCTS, SPRAYER, SPRAY_TARGET, bottleHeight } from './sinkLayout';
 import { dialColour } from './backdrop';
 import { INK } from './style';
 import { isShampoo, isShiny, streamFor, waterLook, type Applying, type Product, type WashLevels } from './wash';
@@ -464,10 +464,10 @@ export class WashFx {
   private sinkControls(g: Graphics, c: FxContext): void {
     // The chosen bottle gets a bobbing ring so it is clear what Apply will use.
     const b = SHELF_PRODUCTS[c.product];
-    const h = 34 * b.tall;
+    const h = bottleHeight(b.tall);
     const bob = Math.sin(this.time * 4) * 1.5;
-    g.roundRect(b.x - 16, b.baseY - h - 14 + bob, 32, h + 20, 9).stroke({ width: 6, color: INK });
-    g.roundRect(b.x - 16, b.baseY - h - 14 + bob, 32, h + 20, 9).stroke({ width: 3, color: 0xffffff });
+    g.roundRect(b.x - 21, b.baseY - h - 21 + bob, 42, h + 27, 11).stroke({ width: 6, color: INK });
+    g.roundRect(b.x - 21, b.baseY - h - 21 + bob, 42, h + 27, 11).stroke({ width: 3, color: 0xffffff });
 
     // Lever: points from the centre round the scale, cold on the left to hot on the right.
     const t = clamp(c.temperature, 0, 1);

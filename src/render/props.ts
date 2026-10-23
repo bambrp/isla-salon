@@ -39,11 +39,13 @@ export function plant(g: Graphics, x: number, baseY: number, scale = 1, potColou
   pot(g, x, baseY, scale, potColour);
 }
 
-export function bottle(g: Graphics, x: number, baseY: number, colour: number, tall = 1): void {
-  const h = 34 * tall;
-  g.roundRect(x - 9, baseY - h, 18, h, 5).fill(colour).stroke({ width: LINE, color: INK });
-  g.roundRect(x - 6, baseY - h * 0.7, 6, h * 0.5, 3).fill({ color: 0xffffff, alpha: 0.45 });
-  g.roundRect(x - 5, baseY - h - 9, 10, 9, 2).fill(0xffffff).stroke({ width: LINE, color: INK });
+export function bottle(g: Graphics, x: number, baseY: number, colour: number, tall = 1, size = 1): void {
+  const h = 34 * tall * size;
+  g.roundRect(x - 9 * size, baseY - h, 18 * size, h, 5 * size).fill(colour).stroke({ width: LINE, color: INK });
+  g.roundRect(x - 6 * size, baseY - h * 0.7, 6 * size, h * 0.5, 3 * size).fill({ color: 0xffffff, alpha: 0.45 });
+  g.roundRect(x - 5 * size, baseY - h - 9 * size, 10 * size, 9 * size, 2 * size)
+    .fill(0xffffff)
+    .stroke({ width: LINE, color: INK });
 }
 
 export function sprayBottle(g: Graphics, x: number, baseY: number, colour = 0x7bdff2): void {

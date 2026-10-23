@@ -18,7 +18,7 @@ Based on `intent.md`. Decisions below were confirmed by the owner.
 | 7 Release | Built and release-ready; host chosen: Cloudflare Pages (you have an account); going live needs you to connect it (see below) |
 | Version 1 fixes | **Planned, not started** (checklist F1 to F6 in section 6, after the enhancements) |
 | Open bug | Stray lines on mobile Chrome and Firefox (fan from the top-left of the picture on every stage); not yet diagnosed. The latest source was lost; work restarted from the Stage 7 source (see "Rebuilding the enhancements") |
-| Version 1 enhancements | **Being rebuilt on the Stage 7 source: 1 of 9 rebuilt** (the version you deployed has all nine) (checklist in section 6, after Stage 7) |
+| Version 1 enhancements | **Being rebuilt on the Stage 7 source: 2 of 9 rebuilt** (the version you deployed has all nine) (checklist in section 6, after Stage 7) |
 
 Stage 2 notes (decisions made while building):
 - Colouring has three modes: one colour, left and right (as you see Isla from the front: Left is the screen-left), and ombre (roots to tips).
@@ -230,7 +230,7 @@ The renderer is a pure function of `SalonState` plus transient animation state (
 
 ### Rebuilding the enhancements
 
-The source with enhancements 1 to 9 was lost, so they are being redone, one at a time, from the Stage 7 source (the deployed build has all nine). Rebuilt so far: **1**. The tick boxes and "Done:" notes below describe the deployed version; the list here says which are back in the source. The fixes below are not started.
+The source with enhancements 1 to 9 was lost, so they are being redone, one at a time, from the Stage 7 source (the deployed build has all nine). Rebuilt so far: **1, 2**. The tick boxes and "Done:" notes below describe the deployed version; the list here says which are back in the source. The fixes below are not started.
 
 ### Version 1 enhancements (all built in the deployed version)
 
@@ -240,7 +240,7 @@ A checklist of changes requested after the first build. Tick each box when it is
 - [x] 1. When switching stages, slide the background in from the side. Done (rebuilt in the source): the new backdrop pans in while the old one slides out, in 0.45 s, from the right when moving forward through the tabs (Washing, Colouring, Cutting, Styling) and from the left when moving back. Isla stays put. It is off with reduced motion.
 
 **Washing stage**
-- [x] 2. Make the shampoo and conditioner bottles larger, so they are obviously things to tap. Mint has a mint leaf on its label, citrus an orange segment, tropical a pineapple. Done: bottles are 1.5 times bigger, with those three pictures (the conditioner keeps its heart), wider shelves and larger tap targets.
+- [x] 2. Make the shampoo and conditioner bottles larger, so they are obviously things to tap. Mint has a mint leaf on its label, citrus an orange segment, tropical a pineapple. Done (rebuilt in the source): bottles are 1.5 times bigger, with those three pictures (the conditioner keeps its heart), wider shelves and larger tap targets.
 - [x] 3. Enlarge the temperature control by 50%. Done: the wall dial is 1.5 times bigger, with a bigger target.
 - [x] 4. Add a tap next to the temperature control that controls the water pressure. It works like a real tap: the lowest setting is off, then low pressure rising to high pressure. Done: a tap with a turning cross handle sits just above the dial; drag up for more pressure, drag right down to snap it off. Pressure still has its panel slider (which reads Off at zero). With the tap off, holding the water button gives no water and the button reads "Tap is off". Item 7 will make the tap stay on by itself.
 - [x] 5. Water hotter than warm: keep the steam, and turn the character more pink; the hottest water makes her look a bit annoyed. Cold water: keep the ice effect, and turn her more blue. The facial colour change fades slowly back to normal over three seconds. Done: while the water runs her skin goes pink above warm (more so as it gets hotter), the hottest water also slants her brows and turns her smile into a frown, and cold water turns her blue, in about a second. When the water stops, or is changed to a gentler setting, the colour and expression fade back to normal over three seconds. The fade carries on if you switch stage.

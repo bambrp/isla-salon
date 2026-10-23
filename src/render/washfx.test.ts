@@ -2,7 +2,7 @@ import { get } from 'svelte/store';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { DEG, HEAD } from './geometry';
 import { FRONT_SECTOR, reachAt, type Lengths } from './hair';
-import { DIAL, SHELF_PRODUCTS, onDial, productAt } from './sinkLayout';
+import { BOTTLE_HIT, BOTTLE_SCALE, DIAL, SHELF_BOARD, SHELF_PRODUCTS, bottleHeight, onDial, productAt } from './sinkLayout';
 import { BUBBLE_COUNT, foamLayout } from './washfx';
 import {
   commitWash,
@@ -71,6 +71,22 @@ describe('the sink scene', () => {
         if (a !== b && a.baseY === b.baseY) expect(Math.abs(a.x - b.x)).toBeGreaterThan(30);
       }
     }
+  });
+
+  it('draws the bottles 1.5 times bigger, side by side on the shelf without touching their neighbours', () => {
+    expect(BOTTLE_SCALE).toBe(1.5);
+    expect(bottleHeight(1)).toBeCloseTo(51);
+    const row = [SHELF_PRODUCTS.mint, SHELF_PRODUCTS.citrus, SHELF_PRODUCTS.tropical];
+    for (let i = 1; i < row.length; i++) expect(row[i].x - row[i - 1].x).toBeGreaterThan(18 * BOTTLE_SCALE);
+    for (const b of Object.values(SHELF_PRODUCTS)) {
+      expect(b.x - 9 * BOTTLE_SCALE).toBeGreaterThan(SHELF_BOARD.x);
+      expect(b.x + 9 * BOTTLE_SCALE).toBeLessThan(SHELF_BOARD.x + SHELF_BOARD.width);
+      expect(BOTTLE_HIT.halfW).toBeGreaterThanOrEqual(9 * BOTTLE_SCALE);
+    }
+  });
+
+  it('keeps the shelf clear of her head', () => {
+    expect(SHELF_BOARD.x + SHELF_BOARD.width).toBeLessThan(HEAD.cx - HEAD.rx);
   });
 
   it('finds the dial with a generous target', () => {
