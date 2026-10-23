@@ -2,7 +2,7 @@ import 'pixi.js/unsafe-eval';
 import { Application, Container, Graphics, RenderTexture } from 'pixi.js';
 import gsap from 'gsap';
 import { PHOTO_HEIGHT, PHOTO_WIDTH } from '../photo';
-import { VIEWS, commitWash, sceneFor, washLevels, type Region, type SalonState } from '../state';
+import { STAGES, VIEWS, commitWash, sceneFor, washLevels, type Region, type SalonState, type Stage } from '../state';
 import { playBoing, playGrow, playPat, playSnip, playSpray, updateWashSound, type WashSound } from '../audio';
 import { REGION_AZIMUTH, changedRegions, isShorter, regionOfAzimuth } from '../cut';
 import { drawBackdrop } from './backdrop';
@@ -39,6 +39,9 @@ const DESIGN_H = 500;
 
 /** Seconds for the swing between two views. */
 const SWING_SECONDS = 0.55;
+/** Changing stage pans the new backdrop in from the side: how far it travels (design units) and how long it takes. */
+const PAN_DISTANCE = 700;
+const PAN_SECONDS = 0.45;
 
 /** Which side of the picture the scissors come in from, and where they meet the hair, for each region and view. */
 function regionPoint(region: Region, phi: number, reach: number): { x: number; y: number; facing: number } {
@@ -100,15 +103,20 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
 
   const world = new Container();
   const backdrop = new Graphics();
+  // The incoming backdrop while the stages slide: it pans in over the old one, and Isla stays where she is.
+  const slide = new Graphics();
+  slide.visible = false;
   const character = new Graphics();
   const guide = new Graphics();
   const fx = new Graphics();
   const washG = new Graphics();
-  world.addChild(backdrop, character, guide, washG, fx);
+  world.addChild(backdrop, slide, character, guide, washG, fx);
   app.stage.addChild(world);
 
   let state: SalonState | undefined;
   let drawnScene: 'sink' | 'mirror' | undefined;
+  let drawnStage: Stage | undefined;
+  let panning: gsap.core.Tween | undefined;
   let destroyed = false;
 
   // Hair geometry only changes when the cut does, so build it once per cut rather than per frame. The cut on show
@@ -489,15 +497,59 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
       .to(scissors, { alpha: 0, x: best.x - approach * 40, duration: 0.18, ease: 'power2.in' }, '+=0.05');
   }
 
+  /** Settle a pan at once: the new backdrop becomes the one on show. */
+  function finishPan(): void {
+    panning?.kill();
+    panning = undefined;
+    if (drawnScene && slide.visible) {
+      drawBackdrop(backdrop, drawnScene);
+      backdrop.x = 0;
+      slide.clear();
+      slide.x = 0;
+      slide.visible = false;
+    }
+  }
+
+  /** Slide the new stage's backdrop in from the side (right when moving forward through the tabs, left when back). */
+  function panBackdrop(scene: 'sink' | 'mirror', direction: 1 | -1): void {
+    finishPan();
+    if (prefersReducedMotion()) {
+      drawBackdrop(backdrop, scene);
+      return;
+    }
+    drawBackdrop(slide, scene);
+    slide.visible = true;
+    slide.x = PAN_DISTANCE * direction;
+    const shift = { t: 0 };
+    panning = gsap.to(shift, {
+      t: 1,
+      duration: PAN_SECONDS,
+      ease: 'power2.inOut',
+      onUpdate: () => {
+        slide.x = PAN_DISTANCE * direction * (1 - shift.t);
+        backdrop.x = -PAN_DISTANCE * direction * shift.t;
+        draw();
+      },
+      onComplete: () => {
+        drawnScene = scene;
+        finishPan();
+        draw();
+      },
+    });
+  }
+
   function render(next: SalonState): void {
     if (destroyed) return;
     state = next;
 
     const scene = sceneFor(next.stage);
-    if (scene !== drawnScene) {
+    if (drawnStage === undefined) {
       drawBackdrop(backdrop, scene);
-      drawnScene = scene;
+    } else if (next.stage !== drawnStage) {
+      panBackdrop(scene, STAGES.indexOf(next.stage) > STAGES.indexOf(drawnStage) ? 1 : -1);
     }
+    drawnScene = scene;
+    drawnStage = next.stage;
 
     // A reset puts everything back at once, with no scissors and no easing.
     if (next.epoch !== epoch) {
@@ -614,6 +666,7 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
   /** Render the design box (head, shoulders and salon) at the fixed photo size, leaving the controls and effects out. */
   async function photo(): Promise<Blob> {
     if (destroyed) throw new Error('The salon is closed');
+    finishPan();
     const target = RenderTexture.create({ width: PHOTO_WIDTH, height: PHOTO_HEIGHT, resolution: 1, antialias: true });
     const was = { scale: world.scale.x, x: world.x, y: world.y, blink: eyes.blink, guide: guide.visible, fx: fx.visible, cy: character.y };
     try {
@@ -654,6 +707,7 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
     destroy() {
       if (destroyed) return;
       destroyed = true;
+      panning?.kill();
       if (tickerOn) gsap.ticker.remove(tick);
       tickerOn = false;
       updateWashSound(null, 0);
