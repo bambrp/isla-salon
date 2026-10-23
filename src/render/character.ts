@@ -11,6 +11,7 @@ import {
   torsoScale,
 } from './geometry';
 import type { HairPaint } from './colour';
+import { CALM, tintedSkin, type Mood } from './complexion';
 import { drawLocks, sheenRuns, splitLocks, type Lock, type SheenPoint } from './hair';
 import { INK, OUTLINE, PALETTE, SHADOW_FACTOR, celEllipse, shade } from './style';
 
@@ -149,13 +150,14 @@ function drawEye(g: Graphics, az: number, phi: number, iris: number, blink: numb
   g.ellipse(sx + gaze - 3 * kx, cy - 5 * open, 3 * kx, 3 * open).fill(0xffffff);
 }
 
-function drawBrow(g: Graphics, side: number, phi: number, colour: number): void {
+function drawBrow(g: Graphics, side: number, phi: number, colour: number, annoyed: number): void {
   const pts: Array<Pt & { visible: boolean }> = [];
   const steps = 8;
   for (let k = 0; k <= steps; k++) {
     const t = k / steps;
     const az = side * (12 + 24 * t) * DEG;
-    const y = -13 - 5 * Math.sin(Math.PI * t);
+    // Annoyed: the inner ends sink and the outer ends lift, so the brows slant down towards the nose.
+    const y = -13 - 5 * Math.sin(Math.PI * t) + annoyed * (7 - 12 * t);
     const s = surface(az, y, 0.5);
     const { sx, sy } = project(s.x, s.y, s.z, phi);
     pts.push({ x: sx, y: sy, visible: facing(s, phi) > 0.12 });
@@ -163,25 +165,26 @@ function drawBrow(g: Graphics, side: number, phi: number, colour: number): void 
   strokeRuns(g, pts, { width: 4, color: colour });
 }
 
-function drawMouth(g: Graphics, phi: number): void {
+function drawMouth(g: Graphics, phi: number, annoyed: number): void {
   const pts: Array<Pt & { visible: boolean }> = [];
   const steps = 10;
   for (let k = 0; k <= steps; k++) {
     const t = (k / steps) * 2 - 1;
-    const s = surface(t * 18 * DEG, 56 - 10 * t * t, 0.5);
+    // Annoyed turns the smile over into a frown.
+    const s = surface(t * 18 * DEG, 56 - 10 * t * t * (1 - 2 * annoyed) + 3 * annoyed, 0.5);
     const { sx, sy } = project(s.x, s.y, s.z, phi);
     pts.push({ x: sx, y: sy, visible: facing(s, phi) > 0.1 });
   }
   strokeRuns(g, pts, { width: 4, color: INK });
 }
 
-function drawCheeks(g: Graphics, phi: number): void {
+function drawCheeks(g: Graphics, phi: number, tone: number): void {
   for (const side of [-1, 1]) {
     const s = surface(side * 40 * DEG, 34, 0.5);
     const vis = facing(s, phi);
     if (vis < 0.15) continue;
     const { sx, sy } = project(s.x, s.y, s.z, phi);
-    g.ellipse(sx, sy, 11 * Math.pow(vis, 0.7), 7).fill({ color: PALETTE.blush, alpha: 0.55 });
+    g.ellipse(sx, sy, 11 * Math.pow(vis, 0.7), 7).fill({ color: PALETTE.blush, alpha: tone > 0 ? 0.55 + 0.4 * tone : 0.55 * (1 + 0.5 * tone) });
   }
 }
 
@@ -203,16 +206,16 @@ function drawNose(g: Graphics, skin: number, phi: number): void {
   }
 }
 
-function drawFace(g: Graphics, state: SalonState, phi: number, paint: HairPaint, blink: number): void {
-  const { skin, eyes } = state.character;
-  drawCheeks(g, phi);
+function drawFace(g: Graphics, state: SalonState, skin: number, phi: number, paint: HairPaint, blink: number, mood: Mood): void {
+  const { eyes } = state.character;
+  drawCheeks(g, phi, mood.tone);
   for (const side of [-1, 1] as const) {
     drawEye(g, side * 23 * DEG, phi, eyes, blink);
     // Each brow is a darker shade of the root colour on its own side of the head.
-    drawBrow(g, side, phi, shade(paint.root(side), 0.6));
+    drawBrow(g, side, phi, shade(paint.root(side), 0.6), mood.annoyed);
   }
   drawNose(g, skin, phi);
-  drawMouth(g, phi);
+  drawMouth(g, phi, mood.annoyed);
 }
 
 // ---------------------------------------------------------------------------------------------------
@@ -250,9 +253,10 @@ export function drawCharacter(
   locks: Lock[],
   paint: HairPaint,
   blink = 0,
+  mood: Mood = CALM,
 ): void {
   g.clear();
-  const { skin } = state.character;
+  const skin = tintedSkin(state.character.skin, mood.tone);
   const bandsOf = (lock: Lock) => paint.bands(lock.a0);
   const { behind, front } = splitLocks(locks, phi);
 
@@ -271,7 +275,7 @@ export function drawCharacter(
   drawEars(g, skin, phi, false);
   drawHead(g, skin, phi);
   drawEars(g, skin, phi, true);
-  drawFace(g, state, phi, paint, blink);
+  drawFace(g, state, skin, phi, paint, blink, mood);
 
   drawLocks(g, front, bandsOf);
 

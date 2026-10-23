@@ -8,6 +8,7 @@ import { REGION_AZIMUTH, changedRegions, isShorter, regionOfAzimuth } from '../c
 import { drawBackdrop } from './backdrop';
 import { drawCharacter } from './character';
 import { COLOUR_FADE_SECONDS, ColourFade } from './colourFade';
+import { CALM, isCalm, moodTarget, sameMood, stepMood, type Mood } from './complexion';
 import { HEAD, project, silhouetteHalfWidth } from './geometry';
 import { buildLocks, reachAt, splitLocks, type Lock, type Lengths } from './hair';
 import { NO_LOOK, lookOf, sameLook, type Look } from './look';
@@ -141,6 +142,8 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
   let sinceCommit = 0;
   let dragging: 'dial' | 'tap' | null = null;
   let wasApplying = false;
+  // How the water's temperature shows on her face. It fades back over three seconds, even if she leaves the sink.
+  let mood: Mood = CALM;
 
   // The scissors and the clipped hair. Both are drawn from a few numbers that the animation tweens.
   const scissors = { x: 0, y: 0, angle: 0, open: 0, alpha: 0 };
@@ -201,7 +204,7 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
     // Wet hair is darker; it only shows at the sink, as she is towelled off before the other stages.
     const wet = state.stage === 'wash' ? levels.wet : 0;
     const t = performance.now();
-    drawCharacter(character, state, turn.phi, locks, wet > 0.005 ? dim(paintNow, 1 - 0.24 * wet) : paintNow, eyes.blink);
+    drawCharacter(character, state, turn.phi, locks, wet > 0.005 ? dim(paintNow, 1 - 0.24 * wet) : paintNow, eyes.blink, mood);
     if (stats) {
       stats.draws++;
       stats.drawMs += performance.now() - t;
@@ -261,8 +264,16 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
     return null;
   }
 
+  /** The face the water on show is working towards. */
+  function wantedMood(): Mood {
+    if (!state || state.stage !== 'wash') return CALM;
+    return moodTarget(state.wash.applying === 'water', state.wash.temperature);
+  }
+
   function wantsTicker(): boolean {
-    return !!state && state.stage === 'wash' && (state.wash.applying !== null || washFx.active() || levels.wet > 0.3 || isShiny(levels));
+    if (!state) return false;
+    if (!isCalm(mood) || !sameMood(mood, wantedMood())) return true;
+    return state.stage === 'wash' && (state.wash.applying !== null || washFx.active() || levels.wet > 0.3 || isShiny(levels));
   }
 
   function syncTicker(): void {
@@ -298,7 +309,9 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
     if (ctx) washFx.update(dt, ctx);
     updateWashSound(soundFor(state), state.wash.pressure);
 
-    if (Math.abs(levels.wet - before.wet) > 0.004) draw();
+    const beforeMood = mood;
+    mood = prefersReducedMotion() ? wantedMood() : stepMood(mood, dt, wantedMood());
+    if (!sameMood(mood, beforeMood) || Math.abs(levels.wet - before.wet) > 0.004) draw();
     else drawWash();
 
     sinceCommit += dt;
@@ -558,6 +571,7 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
       gsap.killTweensOf(look);
       lookTarget = undefined;
       shown = undefined;
+      mood = CALM;
     }
 
     applyLook(next);
