@@ -89,6 +89,20 @@ export interface Lock {
 }
 
 export type Lengths = Record<Region, Length>;
+/** A cut part-way between lengths: 0 is the longest length ('back') and 5 the shortest ('short3'); 2.5 is half way from bob to short. */
+export type Positions = Record<Region, number>;
+/** What the hair builders accept: whole lengths, or positions between them while a cut is in progress. */
+export type CutLengths = Record<Region, Length | number>;
+
+const ORDER: readonly Length[] = ['back', 'shoulders', 'bob', 'short1', 'short2', 'short3'];
+
+/** A reach table read at a length, or half way between two of them. */
+export function tableAt(table: Record<Length, number>, at: Length | number): number {
+  const pos = typeof at === 'number' ? Math.min(ORDER.length - 1, Math.max(0, at)) : ORDER.indexOf(at);
+  const lo = Math.floor(pos);
+  const hi = Math.min(ORDER.length - 1, lo + 1);
+  return lerp(table[ORDER[lo]], table[ORDER[hi]], pos - lo);
+}
 
 /** Wrap an angle into [0, 2pi). */
 function wrap(a: number): number {
@@ -102,12 +116,12 @@ function wrap(a: number): number {
  * cut grades gently instead of stepping. Regions are named as the player sees Isla from the front, so Right is
  * the screen-right side of the front view at +90, and Left is at -90.
  */
-export function reachAt(az: number, lengths: Lengths): number {
+export function reachAt(az: number, lengths: CutLengths): number {
   const centres = [
-    FRONT_REACH[lengths.front],
-    SIDE_REACH[lengths.right],
-    BACK_REACH[lengths.back],
-    SIDE_REACH[lengths.left],
+    tableAt(FRONT_REACH, lengths.front),
+    tableAt(SIDE_REACH, lengths.right),
+    tableAt(BACK_REACH, lengths.back),
+    tableAt(SIDE_REACH, lengths.left),
   ];
   const t = wrap(az) / (Math.PI / 2);
   const q = Math.min(3, Math.floor(t));
@@ -192,7 +206,7 @@ function buildSamples(
 }
 
 /** Build every lock for the given cut. Deterministic for a given seed. */
-export function buildLocks(lengths: Lengths, seed: number, look: Look = NO_LOOK): Lock[] {
+export function buildLocks(lengths: CutLengths, seed: number, look: Look = NO_LOOK): Lock[] {
   const rand = mulberry32(seed * 7919 + 13);
   const locks: Lock[] = [];
 

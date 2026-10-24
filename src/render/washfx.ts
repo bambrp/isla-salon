@@ -1,6 +1,6 @@
 import type { Graphics } from 'pixi.js';
 import { DEG, HEAD, clamp, lerp, mulberry32, project, smoothstep } from './geometry';
-import { FRONT_SECTOR, reachAt, type Lengths } from './hair';
+import { FRONT_SECTOR, reachAt, type CutLengths } from './hair';
 import { DIAL, TAP, SHELF_PRODUCTS, SPRAY_TARGET, bottleHeight } from './sinkLayout';
 import { dialColour, tapAngle } from './backdrop';
 import { drawSprayer, sprayerPose, type SprayerPose } from './sprayer';
@@ -33,7 +33,7 @@ export const BUBBLE_COUNT = 96;
  * Scatter bubbles over the hair for a given cut. They keep off the face (the front is crowned only above the
  * forehead) and stop above where the hair ends, so a short cut is lathered high and a long one all the way down.
  */
-export function foamLayout(lengths: Lengths, seed: number): Bubble[] {
+export function foamLayout(lengths: CutLengths, seed: number): Bubble[] {
   const rand = mulberry32(seed * 104729 + 7);
   const top = -(HEAD.ry + 6);
   const out: Bubble[] = [];

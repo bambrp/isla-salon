@@ -55,15 +55,37 @@
   // In the cutting stage, tapping her head or hair picks the region to cut.
   function tapHead(e: MouseEvent): void {
     if ($salon.stage !== 'cut') return;
+    // A drag across her hair is a swipe, not a tap on her head.
+    if (dragged) {
+      dragged = false;
+      return;
+    }
     const region = scene?.regionAt(e.clientX, e.clientY);
     if (region) selectCutTarget(region);
   }
 
   // In the washing stage, tap a bottle on the shelf to choose it, or press the wall dial and drag up for hotter, down for colder.
   let rubbing: number | undefined;
+  // In the cutting stage: swiping back and forth across her hair makes the cut. Whether the finger has moved far
+  // enough to be a drag rather than a tap, so the tap that chooses a part ignores it.
+  let swiping: { id: number; x: number; y: number } | undefined;
+  let dragged = false;
   let dial: { id: number; kind: 'dial' | 'tap'; startY: number; start: number } | undefined;
 
   function pressHost(e: PointerEvent): void {
+    if ($salon.stage === 'cut') {
+      dragged = false;
+      if (scene?.onHair(e.clientX, e.clientY)) {
+        try {
+          host.setPointerCapture(e.pointerId);
+        } catch {
+          /* capture is a nicety */
+        }
+        swiping = { id: e.pointerId, x: e.clientX, y: e.clientY };
+        scene.swipe(e.clientX, e.clientY);
+      }
+      return;
+    }
     if ($salon.stage !== 'wash') return;
     const hit = scene?.washHit(e.clientX, e.clientY);
     if (!hit) {
@@ -99,6 +121,10 @@
   }
 
   function dragHost(e: PointerEvent): void {
+    if (swiping && swiping.id === e.pointerId) {
+      if (Math.hypot(e.clientX - swiping.x, e.clientY - swiping.y) > 10) dragged = true;
+      scene?.swipe(e.clientX, e.clientY);
+    }
     if (rubbing === e.pointerId) scene?.rub(e.clientX, e.clientY);
     if (!dial || e.pointerId !== dial.id) return;
     // Dragging up by about half the picture's height goes from cold to hot, or from off to full pressure.
@@ -113,6 +139,10 @@
   }
 
   function releaseHost(e: PointerEvent): void {
+    if (swiping && swiping.id === e.pointerId) {
+      swiping = undefined;
+      scene?.endSwipe();
+    }
     if (rubbing === e.pointerId) {
       rubbing = undefined;
       scene?.endRub();

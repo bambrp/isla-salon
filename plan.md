@@ -18,7 +18,7 @@ Based on `intent.md`. Decisions below were confirmed by the owner.
 | 7 Release | Built and release-ready; host chosen: Cloudflare Pages (you have an account); going live needs you to connect it (see below) |
 | Version 1 fixes | **Planned, not started** (checklist F1 to F6 in section 6, after the enhancements) |
 | Open bug | Stray lines on mobile Chrome and Firefox (fan from the top-left of the picture on every stage); not yet diagnosed. The latest source was lost; work restarted from the Stage 7 source (see "Rebuilding the enhancements") |
-| Version 1 enhancements | **Being rebuilt on the Stage 7 source: 7 of 9 rebuilt** (the version you deployed has all nine) (checklist in section 6, after Stage 7) |
+| Version 1 enhancements | **Being rebuilt on the Stage 7 source: 8 of 9 rebuilt** (the version you deployed has all nine) (checklist in section 6, after Stage 7) |
 
 Stage 2 notes (decisions made while building):
 - Colouring has three modes: one colour, left and right (as you see Isla from the front: Left is the screen-left), and ombre (roots to tips).
@@ -230,7 +230,7 @@ The renderer is a pure function of `SalonState` plus transient animation state (
 
 ### Rebuilding the enhancements
 
-The source with enhancements 1 to 9 was lost, so they are being redone, one at a time, from the Stage 7 source (the deployed build has all nine). Rebuilt so far: **1, 2, 3, 4, 5, 6, 7**. The tick boxes and "Done:" notes below describe the deployed version; the list here says which are back in the source. The fixes below are not started.
+The source with enhancements 1 to 9 was lost, so they are being redone, one at a time, from the Stage 7 source (the deployed build has all nine). Rebuilt so far: **1, 2, 3, 4, 5, 6, 7, 8**. The tick boxes and "Done:" notes below describe the deployed version; the list here says which are back in the source. The fixes below are not started.
 
 ### Version 1 enhancements (all built in the deployed version)
 
@@ -248,7 +248,7 @@ A checklist of changes requested after the first build. Tick each box when it is
 - [x] 7. When the water tap is on it stays on until turned off (the pressure tap in item 4 is the on/off control: off at its lowest setting). When the user swipes, the shower nozzle moves back and forth with the finger too. She closes her eyes for this as well. Done (rebuilt in the source): the water runs whenever the tap (wall tap or panel slider) is above off, and stops the moment it is turned back to off, with no button involved; the tap starts off, and moving to another stage turns it off. The "Hold for water" button was removed. Swiping across her hair moves the shower nozzle back and forth with the finger (the stream and splashes follow), and it eases back to its place afterwards. She closes her eyes while the water runs.
 
 **Cutting stage**
-- [x] 8. Choosing a hair length does not cut at once. It waits for the user to swipe back and forth across the hair, and the hair moves to the new length over 8 swipes. Done: tapping a length now only queues it (the hair does not change). Once a length is chosen, swiping back and forth across her hair (or click and drag) moves it an eighth of the way each time, smoothly rather than in jumps, and the cut finishes on the eighth swipe. A swipe is a pass of about a finger's width or more in one direction; turning back starts the next one, and small wiggles do not count. Each swipe snips the scissors (or chimes when the hair is growing) and drops clippings. The panel shows eight progress pips and a Snip button that counts as one swipe, for anyone who cannot swipe. Choosing another length part-way carries on from where the hair has got to, and the parts already heading somewhere keep going. A plain tap on her head still chooses a part, and the choice is kept if you move to another stage.
+- [x] 8. Choosing a hair length does not cut at once. It waits for the user to swipe back and forth across the hair, and the hair moves to the new length over 8 swipes. Done (rebuilt in the source): tapping a length now only queues it (the hair does not change). Once a length is chosen, swiping back and forth across her hair (or click and drag) moves it an eighth of the way each time, smoothly rather than in jumps, and the cut finishes on the eighth swipe. A swipe is a pass of about a finger's width or more in one direction; turning back starts the next one, and small wiggles do not count. Each swipe snips the scissors (or chimes when the hair is growing) and drops clippings. The panel shows eight progress pips and a Snip button that counts as one swipe, for anyone who cannot swipe. Choosing another length part-way carries on from where the hair has got to, and the parts already heading somewhere keep going. A plain tap on her head still chooses a part, and the choice is kept if you move to another stage.
 
 **Styling stage**
 - [x] 9. The spiky style is wrong. Spiky hair sticks up and out from the head, according to the length of the hair. Done: see the Spiky note under Stage 5. The old crown tufts and flicked ends are gone.

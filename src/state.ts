@@ -1,5 +1,6 @@
 import { writable } from 'svelte/store';
 import { withColour, withMode, type ColourMode, type HairColour } from './render/colour';
+import { SWIPES_TO_CUT, lengthsOf, planPosition, positionOf, positionsOf, type CutPlan, type Positions } from './cut';
 import { sameLevels, type Applying, type Product, type Shampoo, type WashLevels } from './render/wash';
 
 export type { Applying, ColourMode, HairColour, Product, Shampoo, WashLevels };
@@ -34,6 +35,8 @@ export interface SalonState {
   view: View;
   /** The region the length buttons change in the cutting stage. */
   cutTarget: CutTarget;
+  /** A cut in progress: the length chosen, waiting for swipes across her hair to carry it out. Null when nothing is pending. */
+  cut: CutPlan | null;
   hair: {
     wetness: number;
     cleanliness: number;
@@ -68,6 +71,7 @@ export function initialState(character: CharacterDef = ISLA): SalonState {
     stage: 'wash',
     view: 'front',
     cutTarget: 'all',
+    cut: null,
     hair: {
       wetness: 0,
       cleanliness: 0.4,
@@ -149,14 +153,50 @@ export function selectCutTarget(cutTarget: CutTarget): void {
   salon.update((s) => (s.cutTarget === cutTarget ? s : { ...s, cutTarget }));
 }
 
-/** Cut (or let grow) the chosen region, or the whole head, to a length. Does nothing if nothing would change. */
+/** Cut (or let grow) the chosen region, or the whole head, to a length at once. Used by tests and the debug hook; the game itself goes through chooseLength and swipes. */
 export function setLength(target: CutTarget, length: Length): void {
   salon.update((s) => {
     const regions: Region[] = target === 'all' ? ['front', 'left', 'right', 'back'] : [target];
-    if (regions.every((r) => s.hair.length[r] === length)) return s;
-    const next = { ...s.hair.length };
+    if (!s.cut && regions.every((r) => s.hair.length[r] === length)) return s;
+    const next = { ...lengthsOf(hairPosition(s)) };
     for (const r of regions) next[r] = length;
-    return { ...s, hair: { ...s.hair, length: next } };
+    return { ...s, cut: null, hair: { ...s.hair, length: next } };
+  });
+}
+
+/** Where every part of the hair is right now, between lengths if a cut is part-way. */
+export function hairPosition(s: SalonState): Positions {
+  return s.cut ? planPosition(s.cut) : positionsOf(s.hair.length);
+}
+
+/**
+ * Choose a length for the chosen region (or the whole head). The hair does not change yet: the player swipes
+ * across it, and it moves an eighth of the way each time. Choosing again part-way carries on from where the hair
+ * has got to, and parts already heading somewhere keep going there.
+ */
+export function chooseLength(target: CutTarget, length: Length): void {
+  salon.update((s) => {
+    const regions: Region[] = target === 'all' ? ['front', 'left', 'right', 'back'] : [target];
+    const here = hairPosition(s);
+    const to: Positions = { ...(s.cut ? s.cut.to : here) };
+    for (const r of regions) to[r] = positionOf(length);
+    const moving = (['front', 'left', 'right', 'back'] as Region[]).some((r) => Math.abs(to[r] - here[r]) > 1e-6);
+    if (!moving) {
+      // Back where she started (or nothing to do): settle on the hair as it is.
+      return s.cut ? { ...s, cut: null, hair: { ...s.hair, length: lengthsOf(here) } } : s;
+    }
+    if (s.cut && (['front', 'left', 'right', 'back'] as Region[]).every((r) => s.cut!.to[r] === to[r])) return s;
+    return { ...s, cut: { from: here, to, swipes: 0 } };
+  });
+}
+
+/** One swipe across her hair (or one press of the Snip button): the hair moves an eighth of the way. The eighth finishes the cut. */
+export function cutSwipe(): void {
+  salon.update((s) => {
+    if (!s.cut) return s;
+    const swipes = s.cut.swipes + 1;
+    if (swipes >= SWIPES_TO_CUT) return { ...s, cut: null, hair: { ...s.hair, length: lengthsOf(s.cut.to) } };
+    return { ...s, cut: { ...s.cut, swipes } };
   });
 }
 

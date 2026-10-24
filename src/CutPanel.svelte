@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { salon, selectCutTarget, setLength, type CutTarget, type Length } from './state';
-  import { LENGTHS, LENGTH_LABELS, isHiddenIn } from './cut';
+  import { salon, selectCutTarget, chooseLength, cutSwipe, type CutTarget, type Length } from './state';
+  import { LENGTHS, LENGTH_LABELS, SWIPES_TO_CUT, isHiddenIn, lengthsOf } from './cut';
   import { SIDE_REACH } from './render/hair';
 
   // Left and right are as you see Isla from the front, the same as the colour chooser.
@@ -19,7 +19,10 @@
   }
 
   $: target = $salon.cutTarget;
-  $: lengths = $salon.hair.length;
+  $: cut = $salon.cut;
+  // The lengths asked for: where each part is heading if a cut is waiting, otherwise what it is now.
+  $: lengths = cut ? lengthsOf(cut.to) : $salon.hair.length;
+  $: swipes = cut ? cut.swipes : 0;
   // The length that every chosen region shares, if they agree; the buttons show nothing chosen if they don't.
   $: chosen = (() => {
     const regions = target === 'all' ? (['front', 'left', 'right', 'back'] as const) : ([target] as const);
@@ -27,9 +30,12 @@
     return regions.every((r) => lengths[r] === first) ? first : undefined;
   })();
   $: hidden = target !== 'all' && isHiddenIn(target, $salon.view);
-  $: status = chosen
-    ? `${target === 'all' ? 'All of it' : TARGETS.find((t) => t.target === target)?.label}: ${LENGTH_LABELS[chosen]}`
-    : 'The lengths differ. Pick one to match them all.';
+  $: where = target === 'all' ? 'All of it' : TARGETS.find((t) => t.target === target)?.label;
+  $: status = cut
+    ? `Swipe across her hair to cut: ${swipes} of ${SWIPES_TO_CUT} done.`
+    : chosen
+      ? `${where}: ${LENGTH_LABELS[chosen]}`
+      : 'The lengths differ. Pick one to match them all.';
 </script>
 
 <div class="cut">
@@ -53,7 +59,7 @@
         role="radio"
         aria-checked={chosen === length}
         aria-label={LENGTH_LABELS[length]}
-        on:click={() => setLength(target, length)}
+        on:click={() => chooseLength(target, length)}
       >
         <svg viewBox="0 0 28 32" aria-hidden="true">
           <path d={hairPath(length)} class="hair" />
@@ -64,11 +70,22 @@
     {/each}
   </div>
 
+  <div class="progress">
+    <div class="pips" role="progressbar" aria-label="Cutting progress" aria-valuemin="0" aria-valuemax={SWIPES_TO_CUT} aria-valuenow={swipes}>
+      {#each Array(SWIPES_TO_CUT) as _, i}
+        <span class="pip" class:done={i < swipes} class:waiting={!cut}></span>
+      {/each}
+    </div>
+    <button class="snip" disabled={!cut} on:click={cutSwipe}>
+      <span aria-hidden="true">✂️</span> Snip
+    </button>
+  </div>
+
   <p class="status" aria-live="polite">
     {status}
     {#if hidden}<span class="hint"> Turn Isla round to see it.</span>{/if}
   </p>
-  <p class="tip">Tap her head to choose a part. Tap a length to snip.</p>
+  <p class="tip">Tap her head to choose a part. Choose a length, then swipe back and forth across her hair to cut it.</p>
 </div>
 
 <style>
@@ -148,6 +165,57 @@
     fill: #ffd9b8;
     stroke: var(--ink);
     stroke-width: 1.6;
+  }
+
+  .progress {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .pips {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 4px;
+  }
+
+  .pip {
+    height: 14px;
+    border: 3px solid var(--ink);
+    border-radius: 999px;
+    background: #fff;
+  }
+
+  .pip.done {
+    background: var(--sun);
+  }
+
+  .pip.waiting {
+    opacity: 0.45;
+  }
+
+  .snip {
+    min-height: 44px;
+    min-width: 88px;
+    padding: 0 14px;
+    border: 3px solid var(--ink);
+    border-radius: 999px;
+    background: var(--mint);
+    font-weight: 800;
+    font-size: 0.9rem;
+    box-shadow: 0 3px 0 var(--ink);
+  }
+
+  .snip:disabled {
+    opacity: 0.5;
+    cursor: default;
+    box-shadow: none;
+  }
+
+  .snip:not(:disabled):active {
+    transform: translateY(2px);
+    box-shadow: 0 1px 0 var(--ink);
   }
 
   .status {

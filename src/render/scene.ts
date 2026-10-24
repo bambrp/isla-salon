@@ -2,15 +2,15 @@ import 'pixi.js/unsafe-eval';
 import { Application, Container, Graphics, RenderTexture } from 'pixi.js';
 import gsap from 'gsap';
 import { PHOTO_HEIGHT, PHOTO_WIDTH } from '../photo';
-import { STAGES, VIEWS, commitWash, sceneFor, washLevels, waterRunning, type Region, type SalonState, type Stage } from '../state';
+import { STAGES, VIEWS, commitWash, cutSwipe, hairPosition, sceneFor, washLevels, waterRunning, type Region, type SalonState, type Stage } from '../state';
 import { playBoing, playGrow, playPat, playSnip, playSpray, playSquirt, updateWashSound, type WashSound } from '../audio';
-import { REGION_AZIMUTH, changedRegions, isShorter, regionOfAzimuth } from '../cut';
+import { REGION_AZIMUTH, SWIPES_TO_CUT, movingRegions, positionsOf, regionOfAzimuth, type CutPlan } from '../cut';
 import { drawBackdrop } from './backdrop';
 import { drawCharacter } from './character';
 import { COLOUR_FADE_SECONDS, ColourFade } from './colourFade';
 import { CALM, isCalm, moodTarget, sameMood, stepMood, type Mood } from './complexion';
 import { HEAD, project, silhouetteHalfWidth } from './geometry';
-import { buildLocks, reachAt, splitLocks, type Lock, type Lengths } from './hair';
+import { buildLocks, reachAt, splitLocks, type CutLengths, type Lock, type Positions } from './hair';
 import { NO_LOOK, lookOf, sameLook, type Look } from './look';
 import { SPARK_LIFE, drawSparks, mistSpray, starBurst, type Spark } from './stylefx';
 import { CLIPPING_LIFE, drawClippings, drawScissors, type Clipping } from './scissors';
@@ -27,12 +27,16 @@ export interface SceneHandle {
   regionAt(clientX: number, clientY: number): Region | undefined;
   /** What a press at a page point lands on in the sink scene: the temperature dial, the pressure tap, a bottle on the shelf, or nothing. */
   washHit(clientX: number, clientY: number): { kind: 'dial' | 'tap' } | { kind: 'product'; product: Product } | undefined;
-  /** True if a page point is on her head or hair, which is where swiping rubs product in. */
+  /** True if a page point is on her head or hair, which is where swiping rubs product in or cuts. */
   onHair(clientX: number, clientY: number): boolean;
   /** A finger (or the mouse, button down) is at this page point: moving across her hair rubs product in. */
   rub(clientX: number, clientY: number): void;
   /** The finger lifted or left: no more rubbing. */
   endRub(): void;
+  /** In the cutting stage, a finger (or the mouse, button down) is at this page point: a pass of about a finger's width counts as a swipe. */
+  swipe(clientX: number, clientY: number): void;
+  /** The finger lifted or left: the next touch starts a fresh swipe. */
+  endSwipe(): void;
   /** Show (or hide, with null) the scale of the wall control a finger is dragging. */
   setDragging(on: 'dial' | 'tap' | null): void;
   /** A photo of Isla and the salon as she is now: the picture only, no controls, always the same size and shape. */
@@ -51,6 +55,9 @@ const PAN_DISTANCE = 700;
 const PAN_SECONDS = 0.45;
 /** The squirt blob sinks into her hair over this long. */
 const BLOB_SECONDS = 1;
+/** A swipe is a pass of about a finger's width (design units) in one direction; smaller movements than the jitter are ignored. */
+export const SWIPE_LENGTH = 36;
+const SWIPE_JITTER = 0.8;
 /** Rubbing at this speed (design units a second) or faster is a brisk scrub. */
 const RUB_FULL_SPEED = 260;
 /** She keeps her eyes shut this long after the rubbing stops, and this long after a squirt if no rubbing follows. */
@@ -137,14 +144,16 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
   // lags the requested one by a moment while the scissors work.
   let locks: Lock[] = [];
   let locksKey = '';
-  let shown: Lengths | undefined;
+  // The hair on show, as positions between the six lengths: it glides to each new position as the cut moves on.
+  let shown: Positions | undefined;
+  // The cut plan the last render saw, so a swipe can be told from some other change.
+  let prevCut: CutPlan | null = null;
   // The styling on show (curl and product), which tweens to the one asked for, and the sparks that play on a change.
   const look: Look = { ...NO_LOOK };
   let lookTarget: Look | undefined;
   let sparks: Spark[] = [];
   const sparkClock = { t: SPARK_LIFE };
   let snip: gsap.core.Timeline | undefined;
-  let pendingCut: Lengths | undefined;
 
   // The washing: the hair's wet, lather and cream levels, the particles, and the clock that runs them.
   const washFx = new WashFx();
@@ -163,6 +172,17 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
   let seenSquirts = 0;
   let rub = 0;
   let rubMoved = 0;
+  // Swipe tracking for the cutting stage: where the finger was, which way this stroke runs, and how far it has gone.
+  let swipeLast: { x: number; y: number } | undefined;
+  let swipeDir = 0;
+  let swipeTravel = 0;
+  let swipeCounted = false;
+  function swipeReset(): void {
+    swipeLast = undefined;
+    swipeDir = 0;
+    swipeTravel = 0;
+    swipeCounted = false;
+  }
   // Where a swiping finger is on her head: the shower head follows it, and eases back when the swipe ends.
   let aimGoal: { x: number; y: number } | null = null;
   // True while the photo is being taken, so she poses with her eyes open.
@@ -419,10 +439,12 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
     return bands ? bands[bands.length - 1].colour : 0xffd84a;
   }
 
-  function showCut(lengths: Lengths, seed: number): void {
-    locks = buildLocks(lengths, seed, look);
-    bubbles = foamLayout(lengths, seed);
-    shown = { ...lengths };
+  function showCut(positions: CutLengths, seed: number): void {
+    if (shown) gsap.killTweensOf(shown);
+    const at = positions as Positions;
+    shown = { front: at.front, left: at.left, right: at.right, back: at.back };
+    locks = buildLocks(shown, seed, look);
+    bubbles = foamLayout(shown, seed);
   }
 
   /** Rebuild the hair for the style as it is right now, part-way through a change. */
@@ -468,7 +490,7 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
   }
 
   /** Throw the clipped hair off the region's cut line. */
-  function spawnClippings(regions: Region[], from: Lengths): void {
+  function spawnClippings(regions: Region[], from: CutLengths): void {
     const out: Clipping[] = [];
     for (const region of regions) {
       const reach = reachOf(from, region);
@@ -497,87 +519,97 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
     gsap.to(fall, { t: CLIPPING_LIFE, duration: CLIPPING_LIFE, ease: 'none', onUpdate: drawFx, onComplete: () => { clippings = []; drawFx(); } });
   }
 
-  function reachOf(lengths: Lengths, region: Region): number {
+  function reachOf(lengths: CutLengths, region: Region): number {
     return reachAt(REGION_AZIMUTH[region], lengths);
   }
 
-  /** Put the requested cut on show now, finishing any snip still in progress. */
+  /** Put the hair where it is meant to be now, and put the scissors away. */
   function finishCut(): void {
     snip?.kill();
     snip = undefined;
     scissors.alpha = 0;
-    if (pendingCut && state) showCut(pendingCut, state.character.seed);
-    pendingCut = undefined;
+    if (shown) gsap.killTweensOf(shown);
+    if (shown && state) showCut(hairPosition(state), state.character.seed);
+  }
+
+  const samePositions = (a: Positions, b: Positions): boolean =>
+    Math.abs(a.front - b.front) < 1e-6 && Math.abs(a.left - b.left) < 1e-6 && Math.abs(a.right - b.right) < 1e-6 && Math.abs(a.back - b.back) < 1e-6;
+
+  /** The plan a swipe has just moved on, if the change since the last render was a swipe (the last swipe finishes the cut). */
+  function swipeIn(prev: CutPlan | null, next: SalonState): CutPlan | null {
+    if (!prev) return null;
+    if (next.cut && next.cut.from === prev.from && next.cut.swipes > prev.swipes) return next.cut;
+    if (!next.cut && prev.swipes === SWIPES_TO_CUT - 1 && samePositions(positionsOf(next.hair.length), prev.to)) return prev;
+    return null;
   }
 
   /**
-   * Bring the hair to the cut the player asked for. Shorter cuts get scissors that snip twice before the hair
-   * drops away and falls; longer ones just grow in with a soft chime. With reduced motion it simply changes.
+   * Bring the hair to where the cut has got to. Choosing a length changes nothing by itself; each swipe moves the
+   * hair an eighth of the way, gliding there rather than jumping. A swipe that shortens snips with the scissors and
+   * drops clippings; one that only lengthens grows with a soft chime. With reduced motion the hair simply moves.
    */
   function applyCut(next: SalonState): void {
-    const want = next.hair.length;
+    const want = hairPosition(next);
+    const swipe = swipeIn(prevCut, next);
+    prevCut = next.cut;
     if (!shown) {
       showCut(want, next.character.seed);
       return;
     }
-    if (pendingCut && changedRegions(pendingCut, want).length === 0) return;
-    if (!pendingCut && changedRegions(shown, want).length === 0) return;
-    if (pendingCut) finishCut();
-
-    const from = shown;
-    const changed = changedRegions(from, want);
-    const cutting = changed.filter((r) => isShorter(from[r], want[r]));
+    const from = { ...shown };
     const reduced = prefersReducedMotion();
+    if (!samePositions(shown, want)) {
+      gsap.killTweensOf(shown);
+      if (reduced) {
+        showCut(want, next.character.seed);
+      } else {
+        const target = shown;
+        gsap.to(target, {
+          ...want,
+          duration: 0.3,
+          ease: 'sine.inOut',
+          onUpdate: () => {
+            if (!state) return;
+            locks = buildLocks(target, state.character.seed, look);
+            bubbles = foamLayout(target, state.character.seed);
+            draw();
+          },
+        });
+      }
+    }
+    if (swipe) snipFor(swipe, from, reduced);
+  }
 
+  /** What one swipe looks and sounds like: scissors snipping and clippings falling, or a chime for hair growing. */
+  function snipFor(plan: CutPlan, from: Positions, reduced: boolean): void {
+    const moving = movingRegions(plan);
+    const cutting = moving.filter((m) => m.shorter).map((m) => m.region);
+    if (moving.some((m) => !m.shorter)) playGrow();
+    if (cutting.length === 0) return;
     if (reduced) {
-      showCut(want, next.character.seed);
-      if (cutting.length) playSnip();
-      else playGrow();
+      playSnip();
       return;
     }
-    if (cutting.length === 0) {
-      showCut(want, next.character.seed);
-      playGrow();
-      return;
-    }
-
-    pendingCut = { ...want };
     // Meet the hair at the most visible region being cut.
     const best = cutting
       .map((r) => ({ r, ...regionPoint(r, turn.phi, reachOf(from, r)) }))
       .sort((a, b) => b.facing - a.facing)[0];
     const fromLeft = best.x < HEAD.cx;
     const approach = fromLeft ? 1 : -1;
+    snip?.kill();
     scissors.x = best.x - approach * 46;
     scissors.y = best.y;
     scissors.angle = fromLeft ? -0.25 : Math.PI + 0.25;
     scissors.open = 0;
     scissors.alpha = 0;
+    spawnClippings(cutting, from);
 
     const tl = gsap.timeline({ onUpdate: draw });
     snip = tl;
-    tl.to(scissors, { alpha: 1, x: best.x - approach * 14, duration: 0.14, ease: 'power2.out' })
-      .to(scissors, { open: 1, duration: 0.09, ease: 'power1.out' })
-      .to(scissors, { open: 0, duration: 0.07, ease: 'power1.in', onComplete: playSnip })
-      .to(scissors, { open: 1, duration: 0.09, ease: 'power1.out' })
-      .to(scissors, {
-        open: 0,
-        x: best.x - approach * 4,
-        duration: 0.07,
-        ease: 'power1.in',
-        onComplete: () => {
-          playSnip();
-          const done = pendingCut;
-          pendingCut = undefined;
-          if (!done || !state) return;
-          showCut(done, state.character.seed);
-          const stillShorter = cutting.filter((r) => isShorter(from[r], done[r]));
-          if (stillShorter.length) spawnClippings(stillShorter, from);
-          if (changedRegions(from, done).some((r) => !isShorter(from[r], done[r]))) playGrow();
-          draw();
-        },
-      })
-      .to(scissors, { alpha: 0, x: best.x - approach * 40, duration: 0.18, ease: 'power2.in' }, '+=0.05');
+    tl.to(scissors, { alpha: 1, x: best.x - approach * 14, duration: 0.1, ease: 'power2.out' })
+      .to(scissors, { open: 1, duration: 0.06, ease: 'power1.out' })
+      .to(scissors, { open: 0, x: best.x - approach * 4, duration: 0.06, ease: 'power1.in', onComplete: playSnip })
+      .to(scissors, { alpha: 0, x: best.x - approach * 40, duration: 0.16, ease: 'power2.in' }, '+=0.04');
   }
 
   /** Settle a pan at once: the new backdrop becomes the one on show. */
@@ -653,6 +685,8 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
       gsap.killTweensOf(look);
       lookTarget = undefined;
       shown = undefined;
+      prevCut = null;
+      swipeReset();
       mood = CALM;
       load = { ...load, amount: 0 };
       blobAge = -1;
@@ -668,6 +702,7 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
       seenSquirts = next.wash.squirts;
       if (next.stage === 'wash') squirt(next.wash.product);
     }
+    if (next.stage !== 'cut') swipeReset();
     // Leaving the sink ends any rubbing and opens her eyes.
     if (next.stage !== 'wash' && (rub > 0 || eyeTimer > 0 || blobAge >= 0)) {
       rub = 0;
@@ -684,7 +719,8 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
     const seedKey = String(next.character.seed);
     if (seedKey !== locksKey) {
       finishCut();
-      showCut(next.hair.length, next.character.seed);
+      showCut(hairPosition(next), next.character.seed);
+      prevCut = next.cut;
       locksKey = seedKey;
     } else {
       applyCut(next);
@@ -827,7 +863,7 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
     photo,
     washHit,
     onHair(clientX: number, clientY: number): boolean {
-      return !!state && state.stage === 'wash' && regionAt(clientX, clientY) !== undefined;
+      return !!state && regionAt(clientX, clientY) !== undefined;
     },
     rub(clientX: number, clientY: number): void {
       const p = toDesign(clientX, clientY);
@@ -840,6 +876,38 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
       rubLast = p;
       aimGoal = { x: Math.min(300, Math.max(120, p.x)), y: Math.min(300, Math.max(170, p.y)) };
       syncTicker();
+    },
+    swipe(clientX: number, clientY: number): void {
+      const p = toDesign(clientX, clientY);
+      if (!p || !state || state.stage !== 'cut') return;
+      if (regionAt(clientX, clientY) === undefined) {
+        swipeReset();
+        return;
+      }
+      if (!swipeLast) {
+        swipeLast = p;
+        return;
+      }
+      const dx = p.x - swipeLast.x;
+      const dy = p.y - swipeLast.y;
+      swipeLast = p;
+      // Tiny movements are the finger resting or wobbling: they neither count nor turn the stroke round.
+      if (Math.hypot(dx, dy) < SWIPE_JITTER) return;
+      const dir = Math.abs(dx) >= Math.abs(dy) ? (dx > 0 ? 1 : -1) : dy > 0 ? 2 : -2;
+      // Turning back (or turning a corner) starts the next swipe.
+      if (dir !== swipeDir) {
+        swipeDir = dir;
+        swipeTravel = 0;
+        swipeCounted = false;
+      }
+      swipeTravel += Math.hypot(dx, dy);
+      if (!swipeCounted && swipeTravel >= SWIPE_LENGTH) {
+        swipeCounted = true;
+        cutSwipe();
+      }
+    },
+    endSwipe() {
+      swipeReset();
     },
     endRub() {
       rubLast = undefined;
