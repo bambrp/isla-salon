@@ -13,6 +13,7 @@ import {
   setApplying,
   setPressure,
   setStage,
+  squirtProduct,
   setTemperature,
   washLevels,
 } from '../state';
@@ -146,9 +147,13 @@ describe('the pressure tap in the store', () => {
     setApplying('water');
     setPressure(0);
     expect(get(salon).wash.applying).toBeNull();
-    setApplying('product');
-    setPressure(0);
-    expect(get(salon).wash.applying).toBe('product');
+  });
+
+  it('counts each squirt of product, and the count starts again after a reset', () => {
+    expect(get(salon).wash.squirts).toBe(0);
+    squirtProduct();
+    squirtProduct();
+    expect(get(salon).wash.squirts).toBe(2);
   });
 });
 
@@ -157,7 +162,7 @@ describe('washing controls in the store', () => {
 
   it('starts at warm, medium, mint, nothing running, hair dry', () => {
     const s = get(salon);
-    expect(s.wash).toEqual({ temperature: 0.5, pressure: 0.5, product: 'mint', applying: null });
+    expect(s.wash).toEqual({ temperature: 0.5, pressure: 0.5, product: 'mint', applying: null, squirts: 0 });
     expect(washLevels(s)).toEqual({ wet: 0, foam: 0, cream: 0, clean: 0.4, conditioned: 0 });
   });
 
@@ -191,8 +196,6 @@ describe('washing controls in the store', () => {
     setStage('colour');
     expect(get(salon).wash.applying).toBeNull();
     setStage('wash');
-    setApplying('product');
-    setStage('wash');
-    expect(get(salon).wash.applying).toBe('product');
+    expect(get(salon).wash.applying).toBeNull();
   });
 });

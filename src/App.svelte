@@ -60,12 +60,25 @@
   }
 
   // In the washing stage, tap a bottle on the shelf to choose it, or press the wall dial and drag up for hotter, down for colder.
+  let rubbing: number | undefined;
   let dial: { id: number; kind: 'dial' | 'tap'; startY: number; start: number } | undefined;
 
   function pressHost(e: PointerEvent): void {
     if ($salon.stage !== 'wash') return;
     const hit = scene?.washHit(e.clientX, e.clientY);
-    if (!hit) return;
+    if (!hit) {
+      // Swiping back and forth across her hair rubs product in (and, once water is on, moves nothing else).
+      if (scene?.onHair(e.clientX, e.clientY)) {
+        try {
+          host.setPointerCapture(e.pointerId);
+        } catch {
+          /* capture is a nicety */
+        }
+        rubbing = e.pointerId;
+        scene.rub(e.clientX, e.clientY);
+      }
+      return;
+    }
     if (hit.kind === 'product') {
       selectProduct(hit.product);
       return;
@@ -86,6 +99,7 @@
   }
 
   function dragHost(e: PointerEvent): void {
+    if (rubbing === e.pointerId) scene?.rub(e.clientX, e.clientY);
     if (!dial || e.pointerId !== dial.id) return;
     // Dragging up by about half the picture's height goes from cold to hot, or from off to full pressure.
     const moved = (dial.startY - e.clientY) / Math.max(120, host.clientHeight * 0.5);
@@ -99,6 +113,10 @@
   }
 
   function releaseHost(e: PointerEvent): void {
+    if (rubbing === e.pointerId) {
+      rubbing = undefined;
+      scene?.endRub();
+    }
     if (!dial || e.pointerId !== dial.id) return;
     dial = undefined;
     scene?.setDragging(null);

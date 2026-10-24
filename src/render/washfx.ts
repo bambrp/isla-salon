@@ -125,9 +125,21 @@ interface Particle {
   colour2: number;
 }
 
+/** A blob of product squirted on top of her head, sinking into the hair. `t` runs 0 (just squirted) to 1 (gone). */
+export interface Blob {
+  t: number;
+  colour: number;
+}
+
 export interface FxContext {
   applying: Applying;
+  /** The product on the hair (it decides the lather's scent and colour); the bottle chosen on the shelf is `selected`. */
   product: Product;
+  selected: Product;
+  /** How hard the hair is being rubbed, 0 to 1. */
+  rub: number;
+  /** The squirt sinking in, if there is one. */
+  blob: Blob | null;
   pressure: number;
   temperature: number;
   levels: WashLevels;
@@ -272,7 +284,7 @@ export class WashFx {
 
     // Scented bits drift up off the hair while a product goes on.
     if (c.applying === 'product') {
-      for (let i = this.due('accent', 16, dt); i > 0; i--) {
+      for (let i = this.due('accent', 6 + 18 * c.rub, dt); i > 0; i--) {
         const shampoo = isShampoo(c.product);
         const scent = shampoo ? SCENT[c.product as keyof typeof SCENT] : undefined;
         this.emit({
@@ -314,7 +326,35 @@ export class WashFx {
     this.particles(g);
     if (isShiny(c.levels)) this.sparkle(g, c.phi);
 
+    if (c.blob) this.blob(g, c.blob);
     this.sinkControls(g, c);
+  }
+
+  /**
+   * The squirt: a glossy blob of product pops out on her crown, sits a moment, then sinks into the hair over one
+   * second, flattening and spreading as it goes.
+   */
+  private blob(g: Graphics, b: Blob): void {
+    const t = clamp(b.t, 0, 1);
+    const pop = smoothstep(0, 0.2, t);
+    const sink = smoothstep(0.4, 1, t);
+    // A little overshoot as it lands, then it settles.
+    const bounce = 1 + 0.18 * Math.sin(Math.min(1, t / 0.3) * Math.PI) * (1 - sink);
+    const w = (20 + 14 * sink) * pop * bounce;
+    const h = 15 * pop * (1 - sink) * bounce;
+    if (w < 1 || h < 0.5) return;
+    const x = HEAD.cx;
+    const y = HEAD.cy - HEAD.ry + 2 - h * 0.4;
+    const alpha = 1 - 0.85 * sink * sink;
+    g.ellipse(x, y + h * 0.7, w * 1.05, h * 0.55 + 1).fill({ color: INK, alpha: 0.25 * alpha });
+    g.ellipse(x, y, w, h).fill({ color: b.colour, alpha }).stroke({ width: 3, color: INK, alpha });
+    g.ellipse(x, y + h * 0.35, w * 0.8, h * 0.45).fill({ color: 0x000000, alpha: 0.1 * alpha });
+    g.ellipse(x - w * 0.35, y - h * 0.35, w * 0.3, h * 0.25).fill({ color: 0xffffff, alpha: 0.75 * alpha });
+    // Two drips on the way in.
+    if (t > 0.1 && t < 0.7) {
+      const fall = smoothstep(0.1, 0.7, t);
+      g.circle(x + w * 0.45, y + h + fall * 14, 2.6 * (1 - fall * 0.5)).fill({ color: b.colour, alpha: 0.9 * (1 - fall) }).stroke({ width: 1.5, color: INK, alpha: 0.7 * (1 - fall) });
+    }
   }
 
   private shown = 0;
@@ -463,7 +503,7 @@ export class WashFx {
   /** The dial's lever and scale marker, the ring round the chosen bottle, and the scale shown while dragging. */
   private sinkControls(g: Graphics, c: FxContext): void {
     // The chosen bottle gets a bobbing ring so it is clear what Apply will use.
-    const b = SHELF_PRODUCTS[c.product];
+    const b = SHELF_PRODUCTS[c.selected];
     const h = bottleHeight(b.tall);
     const bob = Math.sin(this.time * 4) * 1.5;
     g.roundRect(b.x - 21, b.baseY - h - 21 + bob, 42, h + 27, 11).stroke({ width: 6, color: INK });

@@ -6,6 +6,8 @@ import {
   streamFor,
   temperatureBand,
   waterLook,
+  LOAD_PER_SQUIRT,
+  stepWashLoad,
   type WashInput,
   type WashLevels,
 } from './wash';
@@ -16,6 +18,8 @@ const input = (over: Partial<WashInput>): WashInput => ({
   product: 'mint',
   temperature: 0.5,
   pressure: 0.5,
+  rub: 1,
+  load: 99,
   ...over,
 });
 
@@ -49,6 +53,31 @@ describe('washing the hair', () => {
     const wet = run({ ...DRY, wet: 1 }, 1, input({ applying: 'product' }));
     expect(wet.foam).toBeGreaterThan(dry.foam);
     expect(dry.foam).toBeGreaterThan(0);
+  });
+
+  it('gives about two thirds of a full lather from one squirt, rubbed all the way in', () => {
+    let l: WashLevels = { ...DRY, wet: 1 };
+    let load = LOAD_PER_SQUIRT;
+    for (let k = 0; k < 60 * 20; k++) {
+      const r = stepWashLoad(l, 1 / 60, input({ applying: 'product', load }));
+      l = r.levels;
+      load = Math.max(0, load - r.used);
+    }
+    expect(l.foam).toBeCloseTo(0.67, 1);
+    expect(load).toBeCloseTo(0, 2);
+  });
+
+  it('only lathers while she is being rubbed, and only while there is product on her', () => {
+    const still = run({ ...DRY, wet: 1 }, 2, input({ applying: 'product', rub: 0 }));
+    expect(still.foam).toBe(0);
+    const none = run({ ...DRY, wet: 1 }, 2, input({ applying: 'product', load: 0 }));
+    expect(none.foam).toBe(0);
+  });
+
+  it('lathers faster the harder she is rubbed', () => {
+    const slow = run({ ...DRY, wet: 1 }, 1, input({ applying: 'product', rub: 0.3 }));
+    const brisk = run({ ...DRY, wet: 1 }, 1, input({ applying: 'product', rub: 1 }));
+    expect(brisk.foam).toBeGreaterThan(slow.foam);
   });
 
   it('rinses the lather away with water, harder water faster', () => {

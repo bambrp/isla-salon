@@ -7,7 +7,10 @@ import { clamp, lerp, smoothstep } from './geometry';
 
 export type Shampoo = 'mint' | 'citrus' | 'tropical';
 export type Product = Shampoo | 'conditioner';
-/** What the hold buttons are doing right now: running the water, or applying the chosen product. */
+/**
+ * What is happening to the hair right now: the water running, or product being rubbed in (swiping across her hair
+ * while there is product on it), or neither. Only the water is held in the store; rubbing is worked out by the scene.
+ */
 export type Applying = 'water' | 'product' | null;
 
 export interface WashLevels {
@@ -28,9 +31,17 @@ export interface WashInput {
   product: Product;
   /** 0 = icy, 0.5 = warm, 1 = hot. */
   temperature: number;
-  /** 0 = a trickle, 1 = full blast. */
+  /** 0 = off, 1 = full blast. */
   pressure: number;
+  /** How hard the hair is being rubbed, 0 (not at all) to 1 (a brisk scrub). Product only works in while this is above 0. */
+  rub: number;
+  /** Product squirted on and waiting to be rubbed in. One squirt is 1. */
+  load: number;
 }
+
+/** One squirt rubbed in all the way is worth this much of a full lather (or of full cream). */
+export const GAIN_PER_LOAD = 0.67;
+export const LOAD_PER_SQUIRT = 1;
 
 export const SHAMPOOS: readonly Shampoo[] = ['mint', 'citrus', 'tropical'];
 export const PRODUCTS: readonly Product[] = ['mint', 'citrus', 'tropical', 'conditioner'];
@@ -50,7 +61,13 @@ const RINSE_CREAM = 0.12;
 
 /** Advance the levels by dt seconds of whatever is being applied. Returns a new object; the input is untouched. */
 export function stepWash(l: WashLevels, dt: number, input: WashInput): WashLevels {
+  return stepWashLoad(l, dt, input).levels;
+}
+
+/** As stepWash, and also says how much of the waiting product (input.load) was rubbed in during the step. */
+export function stepWashLoad(l: WashLevels, dt: number, input: WashInput): { levels: WashLevels; used: number } {
   const next = { ...l };
+  let used = 0;
   const p = clamp(input.pressure, 0, 1);
 
   if (input.applying === 'water') {
@@ -58,23 +75,33 @@ export function stepWash(l: WashLevels, dt: number, input: WashInput): WashLevel
     // Harder water rinses faster.
     next.foam -= (RINSE_FOAM + 0.5 * p) * dt;
     next.cream -= (RINSE_CREAM + 0.35 * p) * dt;
-  } else if (input.applying === 'product') {
+  } else if (input.applying === 'product' && input.load > 0 && input.rub > 0) {
+    // Rubbing works product in at a pace that follows how hard she is rubbed, until the squirt runs out.
+    const rub = clamp(input.rub, 0, 1);
+    const main = isShampoo(input.product) ? LATHER_RATE * (0.45 + 0.55 * l.wet) : CREAM_RATE;
+    const wanted = main * rub * dt;
+    const gain = Math.min(wanted, input.load * GAIN_PER_LOAD);
+    const share = wanted > 0 ? gain / wanted : 0;
+    used = gain / GAIN_PER_LOAD;
     if (isShampoo(input.product)) {
       // Lather builds faster on wet hair.
-      next.foam += LATHER_RATE * (0.45 + 0.55 * l.wet) * dt;
-      next.clean += CLEAN_RATE * dt;
+      next.foam += gain;
+      next.clean += CLEAN_RATE * rub * dt * share;
     } else {
-      next.cream += CREAM_RATE * dt;
-      next.conditioned += SILKY_RATE * dt;
+      next.cream += gain;
+      next.conditioned += SILKY_RATE * rub * dt * share;
     }
   }
 
   return {
-    wet: clamp(next.wet, 0, 1),
-    foam: clamp(next.foam, 0, 1),
-    cream: clamp(next.cream, 0, 1),
-    clean: clamp(next.clean, 0, 1),
-    conditioned: clamp(next.conditioned, 0, 1),
+    levels: {
+      wet: clamp(next.wet, 0, 1),
+      foam: clamp(next.foam, 0, 1),
+      cream: clamp(next.cream, 0, 1),
+      clean: clamp(next.clean, 0, 1),
+      conditioned: clamp(next.conditioned, 0, 1),
+    },
+    used,
   };
 }
 

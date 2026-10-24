@@ -91,7 +91,7 @@ export type WashSound = 'water' | 'foam' | 'cream' | null;
 
 let loopNoise: AudioBuffer | undefined;
 let running:
-  | { mode: Exclude<WashSound, null>; src: AudioBufferSourceNode; filter: BiquadFilterNode; gain: GainNode; timer?: number }
+  | { mode: Exclude<WashSound, null>; src: AudioBufferSourceNode; filter: BiquadFilterNode; gain: GainNode; timer?: number; rub: number }
   | undefined;
 
 function longNoise(c: AudioContext): AudioBuffer {
@@ -158,17 +158,20 @@ function bloop(c: AudioContext, gain: number): void {
  * Keep the washing sound matching what the hold buttons are doing. Call it every frame or whenever things change:
  * it does nothing if the sound is already right, and stops everything for null or when muted.
  */
-export function updateWashSound(mode: WashSound, pressure: number): void {
+export function updateWashSound(mode: WashSound, pressure: number, rub = 1): void {
   const c = mode ? context() : undefined;
   if (!mode || !c) {
     stopWash();
     return;
   }
   const t = c.currentTime;
-  const level = mode === 'water' ? 0.05 + 0.2 * pressure : mode === 'foam' ? 0.035 : 0.025;
-  const cutoff = mode === 'water' ? 900 + 3600 * pressure : mode === 'foam' ? 3000 : 700;
+  // Rubbing in product is louder and brighter the harder she is rubbed.
+  const scrub = Math.min(1, Math.max(0, rub));
+  const level = mode === 'water' ? 0.05 + 0.2 * pressure : mode === 'foam' ? 0.012 + 0.05 * scrub : 0.01 + 0.035 * scrub;
+  const cutoff = mode === 'water' ? 900 + 3600 * pressure : mode === 'foam' ? 1800 + 2600 * scrub : 500 + 500 * scrub;
 
   if (running && running.mode === mode) {
+    running.rub = scrub;
     running.gain.gain.setTargetAtTime(level, t, 0.05);
     running.filter.frequency.setTargetAtTime(cutoff, t, 0.05);
     return;
@@ -187,18 +190,61 @@ export function updateWashSound(mode: WashSound, pressure: number): void {
   src.connect(filter).connect(gain).connect(c.destination);
   src.start();
 
-  running = { mode, src, filter, gain };
+  running = { mode, src, filter, gain, rub: scrub };
   if (mode === 'foam') {
+    // A foamy squelch: lots of small bursting bubbles, more of them the harder she rubs, and the odd gloop.
     running.timer = window.setInterval(() => {
       const cc = context();
-      if (cc) pop(cc, 0.05 + Math.random() * 0.06);
-    }, 70);
+      if (!cc || !running) return;
+      if (Math.random() < 0.25 + 0.75 * running.rub) pop(cc, 0.04 + Math.random() * 0.07 * (0.4 + running.rub));
+      if (Math.random() < 0.05 + 0.1 * running.rub) bloop(cc, 0.035);
+    }, 55);
   } else if (mode === 'cream') {
     running.timer = window.setInterval(() => {
       const cc = context();
       if (cc) bloop(cc, 0.05);
     }, 230);
   }
+}
+
+/**
+ * A product squirting out of its bottle: a wet "pfft" of filtered noise that rises in pitch, a short gap, a smaller
+ * "pt", and a soft low blip as the blob lands.
+ */
+export function playSquirt(): void {
+  const c = context();
+  if (!c) return;
+  const t = c.currentTime;
+  const burst = (start: number, length: number, from: number, to: number, peak: number): void => {
+    const src = c.createBufferSource();
+    src.buffer = noiseBuffer(c);
+    src.loop = true;
+    const filter = c.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.Q.value = 2.5;
+    filter.frequency.setValueAtTime(from, t + start);
+    filter.frequency.exponentialRampToValueAtTime(to, t + start + length);
+    const gain = c.createGain();
+    gain.gain.setValueAtTime(0.0001, t + start);
+    gain.gain.exponentialRampToValueAtTime(peak, t + start + 0.025);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + start + length);
+    src.connect(filter).connect(gain).connect(c.destination);
+    src.start(t + start);
+    src.stop(t + start + length + 0.02);
+  };
+  burst(0, 0.22, 900, 2600, 0.3);
+  burst(0.27, 0.1, 1500, 3200, 0.2);
+  const o = c.createOscillator();
+  o.type = 'sine';
+  o.frequency.setValueAtTime(230, t + 0.38);
+  o.frequency.exponentialRampToValueAtTime(110, t + 0.5);
+  const g = c.createGain();
+  g.gain.setValueAtTime(0.0001, t + 0.38);
+  g.gain.exponentialRampToValueAtTime(0.16, t + 0.4);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.52);
+  o.connect(g).connect(c.destination);
+  o.start(t + 0.38);
+  o.stop(t + 0.54);
 }
 
 /** A springy boing, for hair being curled. */

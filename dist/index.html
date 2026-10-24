@@ -4,17 +4,27 @@
     <meta charset="UTF-8" />
     <meta
       name="viewport"
-      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <!-- Nothing leaves this page: no network calls, no outside scripts, fonts or images. -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'"
     />
     <meta name="theme-color" content="#ff6fb1" />
+    <meta name="description" content="A casual game where you wash, colour, cut and style Isla's hair." />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="icon" href="icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Isla's Salon" />
     <title>Isla's Salon</title>
-    <script type="module" crossorigin src="./assets/index-BDTW915S.js"></script>
-    <link rel="modulepreload" crossorigin href="./assets/CanvasPool-CV_UOA3V.js">
-    <link rel="modulepreload" crossorigin href="./assets/canvasUtils-DTnvIlK6.js">
-    <link rel="modulepreload" crossorigin href="./assets/RenderTargetSystem-BdjqrQVW.js">
-    <link rel="modulepreload" crossorigin href="./assets/getTextureBatchBindGroup-B4QPmYj0.js">
-    <link rel="modulepreload" crossorigin href="./assets/getTexelRangeRects-ClFzfokX.js">
-    <link rel="stylesheet" crossorigin href="./assets/index-CK93SUe5.css">
+    <script type="module" crossorigin src="./assets/index-DVgzdxit.js"></script>
+    <link rel="modulepreload" crossorigin href="./assets/CanvasPool-CkeNae42.js">
+    <link rel="modulepreload" crossorigin href="./assets/RenderTargetSystem-K7_PPJk-.js">
+    <link rel="modulepreload" crossorigin href="./assets/getTexelRangeRects-DlBU4lqS.js">
+    <link rel="stylesheet" crossorigin href="./assets/index-BA6DtSO5.css">
   </head>
   <body>
     <div id="app"></div>

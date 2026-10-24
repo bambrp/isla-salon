@@ -5,9 +5,9 @@
     salon,
     selectProduct,
     setApplying,
+    squirtProduct,
     setPressure,
     setTemperature,
-    type Applying,
     type Product,
   } from './state';
   import { PRODUCTS, TEMPERATURE_LABEL, temperatureBand } from './render/wash';
@@ -27,7 +27,7 @@
    * the pointer is captured so sliding off the button doesn't drop it, and a cancelled touch, a long-press menu,
    * a lost focus or a hidden page all let go too. Space and Enter work the same way for keyboards.
    */
-  function hold(node: HTMLElement, mode: Exclude<Applying, null>) {
+  function hold(node: HTMLElement, mode: 'water') {
     let pointer: number | null = null;
     let keyDown = false;
 
@@ -155,10 +155,11 @@
     >
       <span aria-hidden="true">💧</span> {tapOff ? 'Tap is off' : 'Hold for water'}
     </button>
-    <button class="hold apply" class:pressed={wash.applying === 'product'} use:hold={'product'} aria-pressed={wash.applying === 'product'}>
-      <span aria-hidden="true">{wash.product === 'conditioner' ? '💜' : '🫧'}</span> Hold to apply {productName.toLowerCase()}
+    <button class="hold apply" on:click={squirtProduct}>
+      <span aria-hidden="true">{wash.product === 'conditioner' ? '💜' : '🫧'}</span> Squirt {productName.toLowerCase()}
     </button>
   </div>
+  <p class="hint">Squirt some product on, then rub it in: swipe back and forth across her hair.</p>
 </div>
 
 <style>
@@ -277,6 +278,14 @@
     height: 12px;
     border: 2px solid var(--ink);
     border-radius: 50%;
+  }
+
+  .hint {
+    margin: 0;
+    font-size: 0.78rem;
+    font-weight: 700;
+    line-height: 1.25;
+    text-align: center;
   }
 
   .holds {

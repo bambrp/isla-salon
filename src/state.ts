@@ -46,8 +46,8 @@ export interface SalonState {
     curl: 0 | 1 | 2 | 3;
     product: 'none' | 'spiky' | 'flat';
   };
-  /** The washing controls: water settings, the product on the shelf that is selected, and what the hold buttons are doing. */
-  wash: { temperature: number; pressure: number; product: Product; applying: Applying };
+  /** The washing controls: water settings, the product on the shelf that is selected, what the water button is doing, and how many times product has been squirted on. */
+  wash: { temperature: number; pressure: number; product: Product; applying: Applying; squirts: number };
   audio: { muted: boolean };
   /** Goes up by one each time the salon is reset, so the scene knows to change at once instead of animating. */
   epoch: number;
@@ -80,7 +80,7 @@ export function initialState(character: CharacterDef = ISLA): SalonState {
       curl: 0,
       product: 'none',
     },
-    wash: { temperature: 0.5, pressure: 0.5, product: 'mint', applying: null },
+    wash: { temperature: 0.5, pressure: 0.5, product: 'mint', applying: null, squirts: 0 },
     audio: { muted: false },
     epoch: 0,
   };
@@ -180,8 +180,13 @@ export function selectProduct(product: Product): void {
   salon.update((s) => (s.wash.product === product ? s : { ...s, wash: { ...s.wash, product } }));
 }
 
-/** What the hold buttons are doing: running the water, applying the product, or nothing. */
-export function setApplying(applying: Applying): void {
+/** Squirt the chosen product onto her head. The scene shows the blob; it is rubbed in by swiping across her hair. */
+export function squirtProduct(): void {
+  salon.update((s) => ({ ...s, wash: { ...s.wash, squirts: s.wash.squirts + 1 } }));
+}
+
+/** What the water button is doing: running the water, or nothing. (Product goes on by squirting and rubbing.) */
+export function setApplying(applying: 'water' | null): void {
   salon.update((s) => {
     if (s.wash.applying === applying) return s;
     // With the tap turned off there is no water to run.

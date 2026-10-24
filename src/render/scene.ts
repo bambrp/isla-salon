@@ -3,7 +3,7 @@ import { Application, Container, Graphics, RenderTexture } from 'pixi.js';
 import gsap from 'gsap';
 import { PHOTO_HEIGHT, PHOTO_WIDTH } from '../photo';
 import { STAGES, VIEWS, commitWash, sceneFor, washLevels, type Region, type SalonState, type Stage } from '../state';
-import { playBoing, playGrow, playPat, playSnip, playSpray, updateWashSound, type WashSound } from '../audio';
+import { playBoing, playGrow, playPat, playSnip, playSpray, playSquirt, updateWashSound, type WashSound } from '../audio';
 import { REGION_AZIMUTH, changedRegions, isShorter, regionOfAzimuth } from '../cut';
 import { drawBackdrop } from './backdrop';
 import { drawCharacter } from './character';
@@ -15,8 +15,8 @@ import { NO_LOOK, lookOf, sameLook, type Look } from './look';
 import { SPARK_LIFE, drawSparks, mistSpray, starBurst, type Spark } from './stylefx';
 import { CLIPPING_LIFE, drawClippings, drawScissors, type Clipping } from './scissors';
 import { INK, shade } from './style';
-import { controlAt, productAt } from './sinkLayout';
-import { isShampoo, isShiny, sameLevels, stepWash, temperatureBand, type Product, type WashLevels } from './wash';
+import { SHELF_PRODUCTS, controlAt, productAt } from './sinkLayout';
+import { LOAD_PER_SQUIRT, isShampoo, isShiny, sameLevels, stepWashLoad, temperatureBand, type Applying, type Product, type WashLevels } from './wash';
 import { WashFx, foamLayout, type Bubble, type FxContext } from './washfx';
 import type { HairPaint } from './colour';
 
@@ -27,6 +27,12 @@ export interface SceneHandle {
   regionAt(clientX: number, clientY: number): Region | undefined;
   /** What a press at a page point lands on in the sink scene: the temperature dial, the pressure tap, a bottle on the shelf, or nothing. */
   washHit(clientX: number, clientY: number): { kind: 'dial' | 'tap' } | { kind: 'product'; product: Product } | undefined;
+  /** True if a page point is on her head or hair, which is where swiping rubs product in. */
+  onHair(clientX: number, clientY: number): boolean;
+  /** A finger (or the mouse, button down) is at this page point: moving across her hair rubs product in. */
+  rub(clientX: number, clientY: number): void;
+  /** The finger lifted or left: no more rubbing. */
+  endRub(): void;
   /** Show (or hide, with null) the scale of the wall control a finger is dragging. */
   setDragging(on: 'dial' | 'tap' | null): void;
   /** A photo of Isla and the salon as she is now: the picture only, no controls, always the same size and shape. */
@@ -43,6 +49,13 @@ const SWING_SECONDS = 0.55;
 /** Changing stage pans the new backdrop in from the side: how far it travels (design units) and how long it takes. */
 const PAN_DISTANCE = 700;
 const PAN_SECONDS = 0.45;
+/** The squirt blob sinks into her hair over this long. */
+const BLOB_SECONDS = 1;
+/** Rubbing at this speed (design units a second) or faster is a brisk scrub. */
+const RUB_FULL_SPEED = 260;
+/** She keeps her eyes shut this long after the rubbing stops, and this long after a squirt if no rubbing follows. */
+const EYES_SHUT_AFTER_RUB = 0.5;
+const EYES_SHUT_AFTER_SQUIRT = 1.5;
 
 /** Which side of the picture the scissors come in from, and where they meet the hair, for each region and view. */
 function regionPoint(region: Region, phi: number, reach: number): { x: number; y: number; facing: number } {
@@ -142,6 +155,17 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
   let sinceCommit = 0;
   let dragging: 'dial' | 'tap' | null = null;
   let wasApplying = false;
+  // Product squirted on and waiting to be rubbed in, the blob that is sinking into her hair, and the rubbing itself:
+  // how hard she is being rubbed (smoothed), how far the finger moved since the last frame, and where it was.
+  let load: { product: Product; amount: number } = { product: 'mint', amount: 0 };
+  let blobAge = -1;
+  let blobColour = 0xffffff;
+  let seenSquirts = 0;
+  let rub = 0;
+  let rubMoved = 0;
+  let rubLast: { x: number; y: number } | undefined;
+  // She shuts her eyes from the squirt until half a second after the rubbing stops.
+  let eyeTimer = 0;
   // How the water's temperature shows on her face. It fades back over three seconds, even if she leaves the sink.
   let mood: Mood = CALM;
 
@@ -204,7 +228,7 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
     // Wet hair is darker; it only shows at the sink, as she is towelled off before the other stages.
     const wet = state.stage === 'wash' ? levels.wet : 0;
     const t = performance.now();
-    drawCharacter(character, state, turn.phi, locks, wet > 0.005 ? dim(paintNow, 1 - 0.24 * wet) : paintNow, eyes.blink, mood);
+    drawCharacter(character, state, turn.phi, locks, wet > 0.005 ? dim(paintNow, 1 - 0.24 * wet) : paintNow, Math.max(eyes.blink, eyeTimer > 0 ? 1 : 0), mood);
     if (stats) {
       stats.draws++;
       stats.drawMs += performance.now() - t;
@@ -230,8 +254,11 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
       for (const p of splitLocks(locks, turn.phi).front) tips.push({ x: p.apex[0], y: p.apex[1] });
     }
     return {
-      applying: state.wash.applying,
-      product: state.wash.product,
+      applying: applyingNow(),
+      product: load.amount > 0 ? load.product : state.wash.product,
+      selected: state.wash.product,
+      rub,
+      blob: blobAge >= 0 ? { t: blobAge / BLOB_SECONDS, colour: blobColour } : null,
       pressure: state.wash.pressure,
       temperature: state.wash.temperature,
       levels,
@@ -257,10 +284,18 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
     washFx.draw(washG, ctx);
   }
 
+  /** What is happening to the hair now: the water, or product being rubbed in (swiping, with product on her), or nothing. */
+  function applyingNow(): Applying {
+    if (!state || state.stage !== 'wash') return null;
+    if (state.wash.applying === 'water') return 'water';
+    return rub > 0.06 && load.amount > 0 ? 'product' : null;
+  }
+
   function soundFor(next: SalonState): WashSound {
     if (next.stage !== 'wash') return null;
-    if (next.wash.applying === 'water') return 'water';
-    if (next.wash.applying === 'product') return isShampoo(next.wash.product) ? 'foam' : 'cream';
+    const now = applyingNow();
+    if (now === 'water') return 'water';
+    if (now === 'product') return isShampoo(load.product) ? 'foam' : 'cream';
     return null;
   }
 
@@ -273,7 +308,17 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
   function wantsTicker(): boolean {
     if (!state) return false;
     if (!isCalm(mood) || !sameMood(mood, wantedMood())) return true;
-    return state.stage === 'wash' && (state.wash.applying !== null || washFx.active() || levels.wet > 0.3 || isShiny(levels));
+    return (
+      state.stage === 'wash' &&
+      (state.wash.applying !== null ||
+        washFx.active() ||
+        levels.wet > 0.3 ||
+        isShiny(levels) ||
+        rub > 0 ||
+        rubMoved > 0 ||
+        blobAge >= 0 ||
+        eyeTimer > 0)
+    );
   }
 
   function syncTicker(): void {
@@ -299,19 +344,37 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
     // Very long gaps (a slow frame, a stall) are capped so nothing lurches, but the cap is high enough that a slow phone still keeps pace.
     const dt = Math.min(0.25, Math.max(0, deltaMs / 1000));
     const before = levels;
-    levels = stepWash(levels, dt, {
-      applying: state.wash.applying,
-      product: state.wash.product,
+
+    // How hard she is being rubbed follows how fast the finger moved since the last frame.
+    const target = Math.min(1, rubMoved / Math.max(dt, 1 / 120) / RUB_FULL_SPEED);
+    rubMoved = 0;
+    rub += (target - rub) * Math.min(1, dt * 9);
+    if (target === 0 && rub < 0.02) rub = 0;
+    const shutBefore = eyeTimer > 0;
+    if (rub > 0.05) eyeTimer = Math.max(eyeTimer, EYES_SHUT_AFTER_RUB);
+    else eyeTimer = Math.max(0, eyeTimer - dt);
+    if (blobAge >= 0) {
+      blobAge += dt;
+      if (blobAge >= BLOB_SECONDS) blobAge = -1;
+    }
+
+    const stepped = stepWashLoad(levels, dt, {
+      applying: applyingNow(),
+      product: load.product,
       temperature: state.wash.temperature,
       pressure: state.wash.pressure,
+      rub,
+      load: load.amount,
     });
+    levels = stepped.levels;
+    load = { ...load, amount: Math.max(0, load.amount - stepped.used) };
     const ctx = fxContext();
     if (ctx) washFx.update(dt, ctx);
-    updateWashSound(soundFor(state), state.wash.pressure);
+    updateWashSound(soundFor(state), state.wash.pressure, rub);
 
     const beforeMood = mood;
     mood = prefersReducedMotion() ? wantedMood() : stepMood(mood, dt, wantedMood());
-    if (!sameMood(mood, beforeMood) || Math.abs(levels.wet - before.wet) > 0.004) draw();
+    if (!sameMood(mood, beforeMood) || shutBefore !== eyeTimer > 0 || Math.abs(levels.wet - before.wet) > 0.004) draw();
     else drawWash();
 
     sinceCommit += dt;
@@ -551,6 +614,18 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
     });
   }
 
+  /** Squirt some of a product onto her head. A second squirt of the same product tops it up; another product replaces it. */
+  function squirt(product: Product): void {
+    load =
+      load.product === product && load.amount > 0
+        ? { product, amount: Math.min(2, load.amount + LOAD_PER_SQUIRT) }
+        : { product, amount: LOAD_PER_SQUIRT };
+    blobAge = 0;
+    blobColour = SHELF_PRODUCTS[product].colour;
+    eyeTimer = Math.max(eyeTimer, EYES_SHUT_AFTER_SQUIRT);
+    playSquirt();
+  }
+
   function render(next: SalonState): void {
     if (destroyed) return;
     state = next;
@@ -572,6 +647,27 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
       lookTarget = undefined;
       shown = undefined;
       mood = CALM;
+      load = { ...load, amount: 0 };
+      blobAge = -1;
+      rub = 0;
+      rubMoved = 0;
+      rubLast = undefined;
+      eyeTimer = 0;
+      seenSquirts = next.wash.squirts;
+    }
+
+    // A squirt: a blob pops onto her crown, and the product waits to be rubbed in.
+    if (next.wash.squirts !== seenSquirts) {
+      seenSquirts = next.wash.squirts;
+      if (next.stage === 'wash') squirt(next.wash.product);
+    }
+    // Leaving the sink ends any rubbing and opens her eyes.
+    if (next.stage !== 'wash' && (rub > 0 || eyeTimer > 0 || blobAge >= 0)) {
+      rub = 0;
+      rubMoved = 0;
+      rubLast = undefined;
+      eyeTimer = 0;
+      blobAge = -1;
     }
 
     applyLook(next);
@@ -595,7 +691,7 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
     if (wasApplying && !next.wash.applying) commit();
     wasApplying = next.wash.applying !== null;
     if (next.stage !== 'wash') washFx.clear();
-    updateWashSound(soundFor(next), next.wash.pressure);
+    updateWashSound(soundFor(next), next.wash.pressure, rub);
     syncTicker();
 
     // The first colour just appears; every change after that fades in. A new change part-way through a fade
@@ -683,10 +779,12 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
     if (destroyed) throw new Error('The salon is closed');
     finishPan();
     const target = RenderTexture.create({ width: PHOTO_WIDTH, height: PHOTO_HEIGHT, resolution: 1, antialias: true });
-    const was = { scale: world.scale.x, x: world.x, y: world.y, blink: eyes.blink, guide: guide.visible, fx: fx.visible, cy: character.y };
+    const was = { scale: world.scale.x, x: world.x, y: world.y, blink: eyes.blink, guide: guide.visible, fx: fx.visible, cy: character.y, eyeTimer, blobAge };
     try {
       // Show her as she'd pose: eyes open, no breath, no markers, no scissors or sparks.
       eyes.blink = 0;
+      eyeTimer = 0;
+      blobAge = -1;
       character.y = guide.y = washG.y = 0;
       guide.visible = false;
       fx.visible = false;
@@ -702,6 +800,8 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
       world.scale.set(was.scale);
       world.position.set(was.x, was.y);
       eyes.blink = was.blink;
+      eyeTimer = was.eyeTimer;
+      blobAge = was.blobAge;
       guide.visible = was.guide;
       fx.visible = was.fx;
       character.y = guide.y = washG.y = was.cy;
@@ -715,6 +815,23 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
     regionAt,
     photo,
     washHit,
+    onHair(clientX: number, clientY: number): boolean {
+      return !!state && state.stage === 'wash' && regionAt(clientX, clientY) !== undefined;
+    },
+    rub(clientX: number, clientY: number): void {
+      const p = toDesign(clientX, clientY);
+      if (!p || !state || state.stage !== 'wash') return;
+      if (regionAt(clientX, clientY) === undefined) {
+        rubLast = undefined;
+        return;
+      }
+      if (rubLast) rubMoved += Math.hypot(p.x - rubLast.x, p.y - rubLast.y);
+      rubLast = p;
+      syncTicker();
+    },
+    endRub() {
+      rubLast = undefined;
+    },
     setDragging(on: 'dial' | 'tap' | null) {
       dragging = on;
       drawWash();
