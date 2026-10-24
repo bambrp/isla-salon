@@ -47,7 +47,7 @@ export interface SalonState {
     product: 'none' | 'spiky' | 'flat';
   };
   /** The washing controls: water settings, the product on the shelf that is selected, what the water button is doing, and how many times product has been squirted on. */
-  wash: { temperature: number; pressure: number; product: Product; applying: Applying; squirts: number };
+  wash: { temperature: number; pressure: number; product: Product; squirts: number };
   audio: { muted: boolean };
   /** Goes up by one each time the salon is reset, so the scene knows to change at once instead of animating. */
   epoch: number;
@@ -80,7 +80,7 @@ export function initialState(character: CharacterDef = ISLA): SalonState {
       curl: 0,
       product: 'none',
     },
-    wash: { temperature: 0.5, pressure: 0.5, product: 'mint', applying: null, squirts: 0 },
+    wash: { temperature: 0.5, pressure: 0, product: 'mint', squirts: 0 },
     audio: { muted: false },
     epoch: 0,
   };
@@ -115,11 +115,11 @@ function initialStore(): SalonState {
 export const salon = writable<SalonState>(initialStore());
 
 export function setStage(stage: Stage): void {
-  // Leaving the sink lets go of the water, so nothing keeps running unseen.
+  // Leaving the sink turns the tap off, so nothing keeps running unseen.
   salon.update((s) => ({
     ...s,
     stage,
-    wash: stage === 'wash' || s.wash.applying === null ? s.wash : { ...s.wash, applying: null },
+    wash: stage === 'wash' || s.wash.pressure === 0 ? s.wash : { ...s.wash, pressure: 0 },
   }));
 }
 
@@ -167,12 +167,7 @@ export function setTemperature(temperature: number): void {
 
 export function setPressure(pressure: number): void {
   const p = Math.min(1, Math.max(0, pressure));
-  salon.update((s) => {
-    if (s.wash.pressure === p) return s;
-    // Turning the tap off stops any water that is running.
-    const applying = p === 0 && s.wash.applying === 'water' ? null : s.wash.applying;
-    return { ...s, wash: { ...s.wash, pressure: p, applying } };
-  });
+  salon.update((s) => (s.wash.pressure === p ? s : { ...s, wash: { ...s.wash, pressure: p } }));
 }
 
 /** Pick the product the apply button uses: one of the three shampoos, or the conditioner. */
@@ -185,14 +180,12 @@ export function squirtProduct(): void {
   salon.update((s) => ({ ...s, wash: { ...s.wash, squirts: s.wash.squirts + 1 } }));
 }
 
-/** What the water button is doing: running the water, or nothing. (Product goes on by squirting and rubbing.) */
-export function setApplying(applying: 'water' | null): void {
-  salon.update((s) => {
-    if (s.wash.applying === applying) return s;
-    // With the tap turned off there is no water to run.
-    if (applying === 'water' && s.wash.pressure === 0) return s;
-    return { ...s, wash: { ...s.wash, applying } };
-  });
+/**
+ * True while the water is running: the tap is on (its lowest setting is off) and she is at the sink. It stays on
+ * until the tap is turned back to off, or she leaves the sink.
+ */
+export function waterRunning(s: SalonState): boolean {
+  return s.stage === 'wash' && s.wash.pressure > 0;
 }
 
 /** The hair as the washing simulation left it. */

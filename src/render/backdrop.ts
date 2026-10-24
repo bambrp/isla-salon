@@ -1,6 +1,7 @@
 import type { Graphics } from 'pixi.js';
 import { INK, OUTLINE } from './style';
-import { BOTTLE_SCALE, DIAL, TAP, SHELF_BOARD, SHELF_PRODUCTS, SPRAYER, SPRAY_TARGET, bottleHeight } from './sinkLayout';
+import { BOTTLE_SCALE, DIAL, TAP, SHELF_BOARD, SHELF_PRODUCTS, bottleHeight } from './sinkLayout';
+import { drawHolder } from './sprayer';
 import type { Product } from './wash';
 import {
   bottle,
@@ -60,28 +61,8 @@ function drawSink(g: Graphics): void {
     g.circle(x, y, i === 0 ? 2.2 : 1.6 + 0.5 * i).fill(i === 0 ? 0xff4d4d : 0x2d98da).stroke({ width: 1, color: INK });
   }
 
-  // Handheld sprayer on its hose, aimed at the crown of her head. Drawn along +x then turned to point at SPRAY_TARGET.
-  const ang = Math.atan2(SPRAY_TARGET.y - SPRAYER.y, SPRAY_TARGET.x - SPRAYER.x);
-  const ca = Math.cos(ang);
-  const sa = Math.sin(ang);
-  const place = (pts: number[]): number[] => {
-    const out: number[] = [];
-    for (let i = 0; i < pts.length; i += 2) {
-      // Local x runs along the sprayer; the nozzle face sits at local x = 0, the handle behind it at negative x.
-      out.push(SPRAYER.x + pts[i] * ca - pts[i + 1] * sa, SPRAYER.y + pts[i] * sa + pts[i + 1] * ca);
-    }
-    return out;
-  };
-  g.roundRect(310, 40, 26, 12, 4).fill(0xc9d6df).stroke({ width: OUTLINE, color: INK });
-  const handleEnd = place([-44, 0]);
-  g.moveTo(323, 52).bezierCurveTo(352, 70, 346, 110, handleEnd[0], handleEnd[1]).stroke({ width: 11, color: INK, cap: 'round' });
-  g.moveTo(323, 52).bezierCurveTo(352, 70, 346, 110, handleEnd[0], handleEnd[1]).stroke({ width: 6, color: 0x8fa3ad, cap: 'round' });
-  g.poly(place([-44, -6, -14, -6, -14, 6, -44, 6])).fill(0xdfe9f0).stroke({ width: OUTLINE, color: INK, join: 'round' });
-  g.poly(place([-14, -7, 0, -17, 0, 17, -14, 7])).fill(0xc9d6df).stroke({ width: OUTLINE, color: INK, join: 'round' });
-  for (const o of [-9, 0, 9]) {
-    const hole = place([1, o]);
-    g.circle(hole[0], hole[1], 1.8).fill(INK);
-  }
+  // The sprayer's wall bracket; the sprayer and its hose are drawn by the washing layer, because they move.
+  drawHolder(g);
 
   // Temperature dial on the wall: a chrome ring with a blue to red scale. The washing layer draws the lever on top.
   g.circle(DIAL.x, DIAL.y, DIAL.r + 9).fill(0xdfe9f0).stroke({ width: OUTLINE, color: INK });

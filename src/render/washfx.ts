@@ -1,8 +1,9 @@
 import type { Graphics } from 'pixi.js';
 import { DEG, HEAD, clamp, lerp, mulberry32, project, smoothstep } from './geometry';
 import { FRONT_SECTOR, reachAt, type Lengths } from './hair';
-import { DIAL, TAP, SHELF_PRODUCTS, SPRAYER, SPRAY_TARGET, bottleHeight } from './sinkLayout';
+import { DIAL, TAP, SHELF_PRODUCTS, SPRAY_TARGET, bottleHeight } from './sinkLayout';
 import { dialColour, tapAngle } from './backdrop';
+import { drawSprayer, sprayerPose, type SprayerPose } from './sprayer';
 import { INK } from './style';
 import { isShampoo, isShiny, streamFor, waterLook, type Applying, type Product, type WashLevels } from './wash';
 
@@ -147,6 +148,8 @@ export interface FxContext {
   /** Screen positions where hair ends on the near side, for drips. */
   tips: ReadonlyArray<{ x: number; y: number }>;
   bubbles: Bubble[];
+  /** Where a swiping finger is on her head, which the shower head follows; null when nobody is swiping. */
+  aimGoal: { x: number; y: number } | null;
   /** Which wall control a finger is on, which shows its scale. */
   dragging: 'dial' | 'tap' | null;
 }
@@ -158,6 +161,28 @@ export class WashFx {
   private rand = mulberry32(99);
   private carry = { splash: 0, drip: 0, steam: 0, chill: 0, accent: 0 };
   time = 0;
+  /** Where the shower is aimed now. It chases the finger, and eases back to her crown when the swipe ends. */
+  aim = { x: SPRAY_TARGET.x, y: SPRAY_TARGET.y };
+
+  /** True while the shower head is away from its resting place, so the scene keeps animating until it is back. */
+  aimMoving(): boolean {
+    return Math.abs(this.aim.x - SPRAY_TARGET.x) > 0.3 || Math.abs(this.aim.y - SPRAY_TARGET.y) > 0.3;
+  }
+
+  pose(): SprayerPose {
+    return sprayerPose(this.aim.x, this.aim.y);
+  }
+
+  private chase(dt: number, goal: { x: number; y: number } | null): void {
+    const to = goal ?? SPRAY_TARGET;
+    const k = 1 - Math.exp(-dt * (goal ? 16 : 7));
+    this.aim.x += (to.x - this.aim.x) * k;
+    this.aim.y += (to.y - this.aim.y) * k;
+    if (!goal && !this.aimMoving()) {
+      this.aim.x = SPRAY_TARGET.x;
+      this.aim.y = SPRAY_TARGET.y;
+    }
+  }
 
   /** True while any particle is still in the air, so the scene knows to keep animating. */
   active(): boolean {
@@ -186,6 +211,7 @@ export class WashFx {
     const r = this.rand;
     const look = waterLook(c.temperature);
     const water = c.applying === 'water';
+    this.chase(dt, c.aimGoal);
 
     // Age, move and retire what is already flying.
     for (const p of this.parts) {
@@ -203,8 +229,8 @@ export class WashFx {
       for (let i = this.due('splash', 18 + 60 * c.pressure, dt); i > 0; i--) {
         this.emit({
           shape: 'splash',
-          x: SPRAY_TARGET.x + (r() - 0.5) * 30,
-          y: SPRAY_TARGET.y + (r() - 0.5) * 8,
+          x: this.aim.x + (r() - 0.5) * 30,
+          y: this.aim.y + (r() - 0.5) * 8,
           vx: (r() - 0.5) * (90 + 120 * c.pressure),
           vy: -(50 + r() * (90 + 120 * c.pressure)),
           gravity: 620,
@@ -313,6 +339,7 @@ export class WashFx {
   /** Everything that sits over the hair, and the moving parts of the sink. Cleared and redrawn each frame. */
   draw(g: Graphics, c: FxContext): void {
     g.clear();
+    drawSprayer(g, this.pose());
     const scent = isShampoo(c.product) ? (c.product as keyof typeof SCENT) : 'mint';
     // Lather keeps the colour of the shampoo it came from, so the last shampoo used decides it.
     drawFoam(g, c.bubbles, c.levels.foam, c.phi, this.lastScent(scent, c), this.time);
@@ -381,8 +408,9 @@ export class WashFx {
   /** The water from the sprayer: streaks sliding down a fan, more and faster with pressure. */
   private stream(g: Graphics, c: FxContext, tint: number): void {
     const s = streamFor(c.pressure);
-    const dx = SPRAY_TARGET.x - SPRAYER.x;
-    const dy = SPRAY_TARGET.y - SPRAYER.y;
+    const nozzle = this.pose();
+    const dx = nozzle.aimX - nozzle.x;
+    const dy = nozzle.aimY - nozzle.y;
     const len = Math.hypot(dx, dy);
     const ux = dx / len;
     const uy = dy / len;
@@ -395,10 +423,10 @@ export class WashFx {
       const head = phase * len;
       const tail = Math.max(0, head - (14 + 14 * c.pressure));
       const fan = (t: number) => lane * s.spread * (t / len);
-      const x0 = SPRAYER.x + ux * tail + nx * fan(tail);
-      const y0 = SPRAYER.y + uy * tail + ny * fan(tail);
-      const x1 = SPRAYER.x + ux * head + nx * fan(head);
-      const y1 = SPRAYER.y + uy * head + ny * fan(head);
+      const x0 = nozzle.x + ux * tail + nx * fan(tail);
+      const y0 = nozzle.y + uy * tail + ny * fan(tail);
+      const x1 = nozzle.x + ux * head + nx * fan(head);
+      const y1 = nozzle.y + uy * head + ny * fan(head);
       g.moveTo(x0, y0).lineTo(x1, y1).stroke({ width: s.width + 2, color: INK, cap: 'round', alpha: 0.9 });
       g.moveTo(x0, y0).lineTo(x1, y1).stroke({ width: s.width, color: tint, cap: 'round' });
     }

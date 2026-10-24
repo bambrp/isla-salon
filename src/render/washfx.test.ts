@@ -10,11 +10,11 @@ import {
   initialState,
   salon,
   selectProduct,
-  setApplying,
   setPressure,
   setStage,
   squirtProduct,
   setTemperature,
+  waterRunning,
   washLevels,
 } from '../state';
 
@@ -134,22 +134,44 @@ describe('the sink scene', () => {
 describe('the pressure tap in the store', () => {
   beforeEach(() => salon.set(initialState()));
 
-  it('gives no water while the tap is off, and the water button does nothing', () => {
+  it('starts off, so no water runs until the tap is turned on', () => {
+    expect(get(salon).wash.pressure).toBe(0);
+    expect(waterRunning(get(salon))).toBe(false);
+  });
+
+  it('runs the water the moment the tap goes above off, with no button, and stops it when turned back to off', () => {
+    setPressure(0.1);
+    expect(waterRunning(get(salon))).toBe(true);
+    setPressure(1);
+    expect(waterRunning(get(salon))).toBe(true);
     setPressure(0);
-    setApplying('water');
-    expect(get(salon).wash.applying).toBeNull();
+    expect(waterRunning(get(salon))).toBe(false);
+  });
+
+  it('keeps running until it is turned off, whatever else changes', () => {
+    setPressure(0.4);
+    setTemperature(0.9);
+    selectProduct('citrus');
+    squirtProduct();
     setPressure(0.2);
-    setApplying('water');
-    expect(get(salon).wash.applying).toBe('water');
+    expect(waterRunning(get(salon))).toBe(true);
   });
 
-  it('stops the water the moment the tap is turned off, but leaves product alone', () => {
-    setApplying('water');
-    setPressure(0);
-    expect(get(salon).wash.applying).toBeNull();
+  it('turns the tap off when she leaves the sink, and it stays off when she comes back', () => {
+    setPressure(0.6);
+    setStage('colour');
+    expect(get(salon).wash.pressure).toBe(0);
+    expect(waterRunning(get(salon))).toBe(false);
+    setStage('wash');
+    expect(waterRunning(get(salon))).toBe(false);
   });
 
-  it('counts each squirt of product, and the count starts again after a reset', () => {
+  it('does not run water away from the sink even if the tap value were left up', () => {
+    setPressure(0.5);
+    expect(waterRunning({ ...get(salon), stage: 'cut' })).toBe(false);
+  });
+
+  it('counts each squirt of product', () => {
     expect(get(salon).wash.squirts).toBe(0);
     squirtProduct();
     squirtProduct();
@@ -160,9 +182,9 @@ describe('the pressure tap in the store', () => {
 describe('washing controls in the store', () => {
   beforeEach(() => salon.set(initialState()));
 
-  it('starts at warm, medium, mint, nothing running, hair dry', () => {
+  it('starts at warm, tap off, mint, nothing running, hair dry', () => {
     const s = get(salon);
-    expect(s.wash).toEqual({ temperature: 0.5, pressure: 0.5, product: 'mint', applying: null, squirts: 0 });
+    expect(s.wash).toEqual({ temperature: 0.5, pressure: 0, product: 'mint', squirts: 0 });
     expect(washLevels(s)).toEqual({ wet: 0, foam: 0, cream: 0, clean: 0.4, conditioned: 0 });
   });
 
@@ -191,11 +213,24 @@ describe('washing controls in the store', () => {
     expect(get(salon)).toBe(before);
   });
 
-  it('lets go of the water when she leaves the sink', () => {
-    setApplying('water');
-    setStage('colour');
-    expect(get(salon).wash.applying).toBeNull();
-    setStage('wash');
-    expect(get(salon).wash.applying).toBeNull();
+
+});
+
+describe('the shower head', () => {
+  it('rests aimed at her crown, and moves along with a finger further sideways than up and down', async () => {
+    const { sprayerPose } = await import('./sprayer');
+    const { SPRAY_TARGET, SPRAYER } = await import('./sinkLayout');
+    const rest = sprayerPose(SPRAY_TARGET.x, SPRAY_TARGET.y);
+    expect(rest.x).toBe(SPRAYER.x);
+    expect(rest.y).toBe(SPRAYER.y);
+    const left = sprayerPose(SPRAY_TARGET.x - 60, SPRAY_TARGET.y);
+    const right = sprayerPose(SPRAY_TARGET.x + 60, SPRAY_TARGET.y);
+    expect(left.x).toBeLessThan(rest.x);
+    expect(right.x).toBeGreaterThan(rest.x);
+    expect(Math.abs(left.y - rest.y)).toBeLessThan(1e-9);
+    // Always pointing at where the finger is.
+    for (const p of [left, right, rest]) {
+      expect(p.x + Math.cos(p.angle) * Math.hypot(p.aimX - p.x, p.aimY - p.y)).toBeCloseTo(p.aimX, 5);
+    }
   });
 });

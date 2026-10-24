@@ -2,7 +2,7 @@ import 'pixi.js/unsafe-eval';
 import { Application, Container, Graphics, RenderTexture } from 'pixi.js';
 import gsap from 'gsap';
 import { PHOTO_HEIGHT, PHOTO_WIDTH } from '../photo';
-import { STAGES, VIEWS, commitWash, sceneFor, washLevels, type Region, type SalonState, type Stage } from '../state';
+import { STAGES, VIEWS, commitWash, sceneFor, washLevels, waterRunning, type Region, type SalonState, type Stage } from '../state';
 import { playBoing, playGrow, playPat, playSnip, playSpray, playSquirt, updateWashSound, type WashSound } from '../audio';
 import { REGION_AZIMUTH, changedRegions, isShorter, regionOfAzimuth } from '../cut';
 import { drawBackdrop } from './backdrop';
@@ -163,6 +163,10 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
   let seenSquirts = 0;
   let rub = 0;
   let rubMoved = 0;
+  // Where a swiping finger is on her head: the shower head follows it, and eases back when the swipe ends.
+  let aimGoal: { x: number; y: number } | null = null;
+  // True while the photo is being taken, so she poses with her eyes open.
+  let posing = false;
   let rubLast: { x: number; y: number } | undefined;
   // She shuts her eyes from the squirt until half a second after the rubbing stops.
   let eyeTimer = 0;
@@ -228,7 +232,7 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
     // Wet hair is darker; it only shows at the sink, as she is towelled off before the other stages.
     const wet = state.stage === 'wash' ? levels.wet : 0;
     const t = performance.now();
-    drawCharacter(character, state, turn.phi, locks, wet > 0.005 ? dim(paintNow, 1 - 0.24 * wet) : paintNow, Math.max(eyes.blink, eyeTimer > 0 ? 1 : 0), mood);
+    drawCharacter(character, state, turn.phi, locks, wet > 0.005 ? dim(paintNow, 1 - 0.24 * wet) : paintNow, Math.max(eyes.blink, !posing && (eyeTimer > 0 || waterRunning(state)) ? 1 : 0), mood);
     if (stats) {
       stats.draws++;
       stats.drawMs += performance.now() - t;
@@ -255,6 +259,7 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
     }
     return {
       applying: applyingNow(),
+      aimGoal,
       product: load.amount > 0 ? load.product : state.wash.product,
       selected: state.wash.product,
       rub,
@@ -287,7 +292,7 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
   /** What is happening to the hair now: the water, or product being rubbed in (swiping, with product on her), or nothing. */
   function applyingNow(): Applying {
     if (!state || state.stage !== 'wash') return null;
-    if (state.wash.applying === 'water') return 'water';
+    if (waterRunning(state)) return 'water';
     return rub > 0.06 && load.amount > 0 ? 'product' : null;
   }
 
@@ -302,7 +307,7 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
   /** The face the water on show is working towards. */
   function wantedMood(): Mood {
     if (!state || state.stage !== 'wash') return CALM;
-    return moodTarget(state.wash.applying === 'water', state.wash.temperature);
+    return moodTarget(waterRunning(state), state.wash.temperature);
   }
 
   function wantsTicker(): boolean {
@@ -310,8 +315,10 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
     if (!isCalm(mood) || !sameMood(mood, wantedMood())) return true;
     return (
       state.stage === 'wash' &&
-      (state.wash.applying !== null ||
+      (state.wash.pressure > 0 ||
         washFx.active() ||
+        washFx.aimMoving() ||
+        aimGoal !== null ||
         levels.wet > 0.3 ||
         isShiny(levels) ||
         rub > 0 ||
@@ -666,6 +673,7 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
       rub = 0;
       rubMoved = 0;
       rubLast = undefined;
+      aimGoal = null;
       eyeTimer = 0;
       blobAge = -1;
     }
@@ -688,8 +696,9 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
       levels = stored;
       lastCommitted = stored;
     }
-    if (wasApplying && !next.wash.applying) commit();
-    wasApplying = next.wash.applying !== null;
+    const running = waterRunning(next);
+    if (wasApplying && !running) commit();
+    wasApplying = running;
     if (next.stage !== 'wash') washFx.clear();
     updateWashSound(soundFor(next), next.wash.pressure, rub);
     syncTicker();
@@ -785,6 +794,7 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
       eyes.blink = 0;
       eyeTimer = 0;
       blobAge = -1;
+      posing = true;
       character.y = guide.y = washG.y = 0;
       guide.visible = false;
       fx.visible = false;
@@ -801,6 +811,7 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
       world.position.set(was.x, was.y);
       eyes.blink = was.blink;
       eyeTimer = was.eyeTimer;
+      posing = false;
       blobAge = was.blobAge;
       guide.visible = was.guide;
       fx.visible = was.fx;
@@ -827,10 +838,13 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
       }
       if (rubLast) rubMoved += Math.hypot(p.x - rubLast.x, p.y - rubLast.y);
       rubLast = p;
+      aimGoal = { x: Math.min(300, Math.max(120, p.x)), y: Math.min(300, Math.max(170, p.y)) };
       syncTicker();
     },
     endRub() {
       rubLast = undefined;
+      aimGoal = null;
+      syncTicker();
     },
     setDragging(on: 'dial' | 'tap' | null) {
       dragging = on;

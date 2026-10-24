@@ -1,10 +1,7 @@
 <script lang="ts">
-  import { onDestroy } from 'svelte';
-  import { get } from 'svelte/store';
   import {
     salon,
     selectProduct,
-    setApplying,
     squirtProduct,
     setPressure,
     setTemperature,
@@ -20,86 +17,6 @@
   $: band = temperatureBand(wash.temperature);
   $: productName = NAMES[wash.product];
   $: pressureName = wash.pressure === 0 ? 'Off' : wash.pressure < 0.34 ? 'Gentle' : wash.pressure < 0.67 ? 'Medium' : 'Strong';
-  $: tapOff = wash.pressure === 0;
-
-  /**
-   * Hold to apply. Pressing starts the water or the product and letting go stops it, however the press ends:
-   * the pointer is captured so sliding off the button doesn't drop it, and a cancelled touch, a long-press menu,
-   * a lost focus or a hidden page all let go too. Space and Enter work the same way for keyboards.
-   */
-  function hold(node: HTMLElement, mode: 'water') {
-    let pointer: number | null = null;
-    let keyDown = false;
-
-    const start = () => setApplying(mode);
-    const stop = () => {
-      // Only let go of what this button started, so a second finger on the other button isn't cut off.
-      if (get(salon).wash.applying === mode) setApplying(null);
-    };
-
-    const down = (e: PointerEvent) => {
-      if (e.pointerType === 'mouse' && e.button !== 0) return;
-      e.preventDefault();
-      pointer = e.pointerId;
-      try {
-        node.setPointerCapture(e.pointerId);
-      } catch {
-        /* capture is a nicety */
-      }
-      start();
-    };
-    const up = (e: PointerEvent) => {
-      if (pointer !== null && e.pointerId !== pointer) return;
-      pointer = null;
-      stop();
-    };
-    const key = (e: KeyboardEvent) => {
-      if (e.key !== ' ' && e.key !== 'Enter') return;
-      e.preventDefault();
-      if (e.type === 'keydown' && !e.repeat && !keyDown) {
-        keyDown = true;
-        start();
-      } else if (e.type === 'keyup') {
-        keyDown = false;
-        stop();
-      }
-    };
-    const menu = (e: Event) => e.preventDefault();
-    const away = () => {
-      pointer = null;
-      keyDown = false;
-      stop();
-    };
-    const hidden = () => {
-      if (document.hidden) away();
-    };
-
-    node.addEventListener('pointerdown', down);
-    node.addEventListener('pointerup', up);
-    node.addEventListener('pointercancel', up);
-    node.addEventListener('lostpointercapture', up);
-    node.addEventListener('contextmenu', menu);
-    node.addEventListener('keydown', key);
-    node.addEventListener('keyup', key);
-    node.addEventListener('blur', away);
-    document.addEventListener('visibilitychange', hidden);
-    return {
-      destroy() {
-        node.removeEventListener('pointerdown', down);
-        node.removeEventListener('pointerup', up);
-        node.removeEventListener('pointercancel', up);
-        node.removeEventListener('lostpointercapture', up);
-        node.removeEventListener('contextmenu', menu);
-        node.removeEventListener('keydown', key);
-        node.removeEventListener('keyup', key);
-        node.removeEventListener('blur', away);
-        document.removeEventListener('visibilitychange', hidden);
-        away();
-      },
-    };
-  }
-
-  onDestroy(() => setApplying(null));
 </script>
 
 <div class="wash">
@@ -144,22 +61,10 @@
     {/each}
   </div>
 
-  <div class="holds">
-    <button
-      class="hold water"
-      class:pressed={wash.applying === 'water'}
-      class:off={tapOff}
-      use:hold={'water'}
-      aria-pressed={wash.applying === 'water'}
-      aria-disabled={tapOff}
-    >
-      <span aria-hidden="true">💧</span> {tapOff ? 'Tap is off' : 'Hold for water'}
-    </button>
-    <button class="hold apply" on:click={squirtProduct}>
-      <span aria-hidden="true">{wash.product === 'conditioner' ? '💜' : '🫧'}</span> Squirt {productName.toLowerCase()}
-    </button>
-  </div>
-  <p class="hint">Squirt some product on, then rub it in: swipe back and forth across her hair.</p>
+  <button class="squirt" on:click={squirtProduct}>
+    <span aria-hidden="true">{wash.product === 'conditioner' ? '💜' : '🫧'}</span> Squirt {productName.toLowerCase()}
+  </button>
+  <p class="hint">Turn the tap on for water, and it keeps running until you turn it off. Squirt some product on, then rub it in: swipe back and forth across her hair.</p>
 </div>
 
 <style>
@@ -288,44 +193,23 @@
     text-align: center;
   }
 
-  .holds {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-  }
-
-  .hold {
+  .squirt {
     min-height: 56px;
     padding: 4px 8px;
     border: 3px solid var(--ink);
     border-radius: 18px;
+    background: var(--mint);
     font-weight: 800;
-    font-size: 0.9rem;
+    font-size: 0.95rem;
     line-height: 1.15;
     box-shadow: 0 4px 0 var(--ink);
-    /* A press is a hold, so no scrolling, zooming, text selection or long-press menu may take it over. */
-    touch-action: none;
+    touch-action: manipulation;
     -webkit-touch-callout: none;
     user-select: none;
     -webkit-user-select: none;
   }
 
-  .water {
-    background: var(--sky);
-  }
-
-  .water.off {
-    background: #dfe6ea;
-    box-shadow: 0 4px 0 #8d9aa3;
-    border-color: #4a5560;
-    color: #2b3640;
-  }
-
-  .apply {
-    background: var(--mint);
-  }
-
-  .hold.pressed {
+  .squirt:active {
     transform: translateY(3px);
     box-shadow: 0 1px 0 var(--ink);
     filter: brightness(1.08);
