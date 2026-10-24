@@ -3,8 +3,8 @@ import { Application, Container, Graphics, RenderTexture } from 'pixi.js';
 import gsap from 'gsap';
 import { PHOTO_HEIGHT, PHOTO_WIDTH } from '../photo';
 import { STAGES, VIEWS, commitWash, cutSwipe, hairPosition, sceneFor, washLevels, waterRunning, type Region, type SalonState, type Stage } from '../state';
-import { playBoing, playGrow, playPat, playSnip, playSpray, playSquirt, updateWashSound, type WashSound } from '../audio';
-import { REGION_AZIMUTH, SWIPES_TO_CUT, movingRegions, positionsOf, regionOfAzimuth, type CutPlan } from '../cut';
+import { playBoing, playPat, playSnip, playSparkle, playSpray, playSquirt, updateWashSound, type WashSound } from '../audio';
+import { REGION_AZIMUTH, SWIPES_TO_CUT, movingRegions, positionsOf, regionOfAzimuth, toolFor, type CutPlan } from '../cut';
 import { drawBackdrop } from './backdrop';
 import { drawCharacter } from './character';
 import { COLOUR_FADE_SECONDS, ColourFade } from './colourFade';
@@ -12,8 +12,8 @@ import { CALM, isCalm, moodTarget, sameMood, stepMood, type Mood } from './compl
 import { HEAD, project, silhouetteHalfWidth } from './geometry';
 import { buildLocks, reachAt, splitLocks, type CutLengths, type Lock, type Positions } from './hair';
 import { NO_LOOK, lookOf, sameLook, type Look } from './look';
-import { SPARK_LIFE, drawSparks, mistSpray, starBurst, type Spark } from './stylefx';
-import { CLIPPING_LIFE, drawClippings, drawScissors, type Clipping } from './scissors';
+import { SPARK_LIFE, drawSparks, mistSpray, starBurst, wandSparks, type Spark } from './stylefx';
+import { CLIPPING_LIFE, drawClippings, drawScissors, drawWand, type Clipping } from './scissors';
 import { INK, shade } from './style';
 import { SHELF_PRODUCTS, controlAt, productAt } from './sinkLayout';
 import { LOAD_PER_SQUIRT, conditionSwipe, isShampoo, isShiny, sameLevels, stepWashLoad, temperatureBand, type Applying, type Product, type WashLevels } from './wash';
@@ -246,6 +246,7 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
 
   // The scissors and the clipped hair. Both are drawn from a few numbers that the animation tweens.
   const scissors = { x: 0, y: 0, angle: 0, open: 0, alpha: 0 };
+  const wand = { x: 0, y: 0, angle: 0, glow: 0, alpha: 0 };
   let clippings: Clipping[] = [];
   const fall = { t: 0 };
   let paintNow: ReturnType<ColourFade['paint']> | undefined;
@@ -512,6 +513,7 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
     drawClippings(fx, clippings, fall.t);
     drawSparks(fx, sparks, sparkClock.t);
     drawScissors(fx, scissors.x, scissors.y, scissors.angle, scissors.open, scissors.alpha);
+    drawWand(fx, wand.x, wand.y, wand.angle, wand.glow, wand.alpha);
   }
 
   /** The colour hair has at its tips in a region, for the clippings. */
@@ -609,6 +611,7 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
     snip?.kill();
     snip = undefined;
     scissors.alpha = 0;
+    wand.alpha = 0;
     if (shown) gsap.killTweensOf(shown);
     if (shown && state) showCut(hairPosition(state), state.character.seed);
   }
@@ -661,12 +664,23 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
     if (swipe) snipFor(swipe, from, reduced);
   }
 
-  /** What one swipe looks and sounds like: scissors snipping and clippings falling, or a chime for hair growing. */
+  /**
+   * What one swipe looks and sounds like. Shortening snips with the scissors and drops clippings; hair that only
+   * grows gets a magic wand, a fountain of stars and a sparkly sound instead.
+   */
   function snipFor(plan: CutPlan, from: Positions, reduced: boolean): void {
+    const tool = toolFor(plan);
+    if (!tool) return;
+    snip?.kill();
+    scissors.alpha = 0;
+    wand.alpha = 0;
     const moving = movingRegions(plan);
+    if (tool === 'wand') {
+      playSparkle();
+      if (!reduced) waveWand(moving.map((m) => m.region), from);
+      return;
+    }
     const cutting = moving.filter((m) => m.shorter).map((m) => m.region);
-    if (moving.some((m) => !m.shorter)) playGrow();
-    if (cutting.length === 0) return;
     if (reduced) {
       playSnip();
       return;
@@ -691,6 +705,29 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
       .to(scissors, { open: 1, duration: 0.06, ease: 'power1.out' })
       .to(scissors, { open: 0, x: best.x - approach * 4, duration: 0.06, ease: 'power1.in', onComplete: playSnip })
       .to(scissors, { alpha: 0, x: best.x - approach * 40, duration: 0.16, ease: 'power2.in' }, '+=0.04');
+  }
+
+  /** The wand sweeps in beside the most visible growing region, waves, and sends up a fountain of stars. */
+  function waveWand(growing: Region[], from: Positions): void {
+    const best = growing
+      .map((r) => ({ r, ...regionPoint(r, turn.phi, reachOf(from, r)) }))
+      .sort((a, b) => b.facing - a.facing)[0];
+    const fromLeft = best.x < HEAD.cx;
+    const approach = fromLeft ? 1 : -1;
+    snip?.kill();
+    wand.x = best.x - approach * 50;
+    wand.y = best.y - 26;
+    wand.angle = fromLeft ? -0.7 : Math.PI + 0.7;
+    wand.glow = 0;
+    wand.alpha = 0;
+    const tl = gsap.timeline({ onUpdate: draw });
+    snip = tl;
+    tl.to(wand, { alpha: 1, x: best.x - approach * 14, y: best.y - 8, duration: 0.12, ease: 'power2.out' })
+      .call(() => playSparks(wandSparks(best.x, best.y + 6)))
+      .to(wand, { glow: 1, angle: wand.angle + (fromLeft ? 0.35 : -0.35), duration: 0.12, ease: 'sine.inOut' })
+      .to(wand, { glow: 0.2, angle: wand.angle, duration: 0.12, ease: 'sine.inOut' })
+      .to(wand, { glow: 1, angle: wand.angle + (fromLeft ? 0.35 : -0.35), duration: 0.12, ease: 'sine.inOut' })
+      .to(wand, { alpha: 0, glow: 0, x: best.x - approach * 50, y: best.y - 30, duration: 0.18, ease: 'power2.in' });
   }
 
   /** Settle a pan at once: the new backdrop becomes the one on show. */
@@ -999,6 +1036,7 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
       gsap.killTweensOf(sparkClock);
       gsap.killTweensOf(fall);
       gsap.killTweensOf(scissors);
+      gsap.killTweensOf(wand);
       gsap.killTweensOf(turn);
       if (fade) gsap.killTweensOf(fade);
       observer.disconnect();

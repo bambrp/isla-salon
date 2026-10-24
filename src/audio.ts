@@ -65,22 +65,27 @@ export function playSnip(): void {
   ring.stop(t + 0.08);
 }
 
-/** A soft rising chime, for hair growing back longer. */
-export function playGrow(): void {
+/** A magic wand's sparkle: a quick run of tiny bell notes climbing upwards, each with a faint shimmer above it. */
+export function playSparkle(): void {
   const c = context();
   if (!c) return;
   const t = c.currentTime;
-  const osc = c.createOscillator();
-  osc.type = 'sine';
-  osc.frequency.setValueAtTime(420, t);
-  osc.frequency.exponentialRampToValueAtTime(880, t + 0.22);
-  const gain = c.createGain();
-  gain.gain.setValueAtTime(0.0001, t);
-  gain.gain.exponentialRampToValueAtTime(0.12, t + 0.04);
-  gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.3);
-  osc.connect(gain).connect(c.destination);
-  osc.start(t);
-  osc.stop(t + 0.32);
+  const notes = [1318, 1568, 1976, 2349, 2637, 3136];
+  notes.forEach((freq, i) => {
+    const at = t + i * 0.055;
+    for (const [mult, peak] of [[1, 0.07], [2.01, 0.025]] as const) {
+      const osc = c.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq * mult, at);
+      const gain = c.createGain();
+      gain.gain.setValueAtTime(0.0001, at);
+      gain.gain.exponentialRampToValueAtTime(peak, at + 0.008);
+      gain.gain.exponentialRampToValueAtTime(0.0001, at + 0.22);
+      osc.connect(gain).connect(c.destination);
+      osc.start(at);
+      osc.stop(at + 0.24);
+    }
+  });
 }
 
 // ---------------------------------------------------------------------------------------------------

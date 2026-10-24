@@ -108,6 +108,16 @@ export function planPosition(plan: CutPlan): Positions {
 }
 
 /** Regions the plan is moving, with whether each is getting shorter. */
+/**
+ * The tool a swipe uses: the magic wand when every part that changes is growing, the scissors as soon as any part
+ * is getting shorter, and nothing when nothing changes.
+ */
+export function toolFor(plan: CutPlan): 'wand' | 'scissors' | null {
+  const moving = movingRegions(plan);
+  if (moving.length === 0) return null;
+  return moving.some((m) => m.shorter) ? 'scissors' : 'wand';
+}
+
 export function movingRegions(plan: CutPlan): Array<{ region: Region; shorter: boolean }> {
   return REGIONS.filter((r) => Math.abs(plan.to[r] - plan.from[r]) > 1e-6).map((region) => ({
     region,

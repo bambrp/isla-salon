@@ -16,7 +16,7 @@ Based on `intent.md`. Decisions below were confirmed by the owner.
 | 5 Styling | Done (you asked to move on) |
 | 6 Photo export and polish | Done (you asked to move on) |
 | 7 Release | Built and release-ready; host chosen: Cloudflare Pages (you have an account); going live needs you to connect it (see below) |
-| Version 1 fixes | **F1, F3 and F4 done; F2, F5 and F6 planned, not started** (checklist F1 to F6 in section 6, after the enhancements) |
+| Version 1 fixes | **F1, F3, F4 and F5 done; F2 and F6 planned, not started** (checklist F1 to F6 in section 6, after the enhancements) |
 | Open bug | Stray lines on mobile Chrome and Firefox (fan from the top-left of the picture on every stage); not yet diagnosed. The latest source was lost; work restarted from the Stage 7 source (see "Rebuilding the enhancements") |
 | Version 1 enhancements | **Being rebuilt on the Stage 7 source: 8 of 9 rebuilt** (the version you deployed has all nine) (checklist in section 6, after Stage 7) |
 
@@ -253,7 +253,7 @@ A checklist of changes requested after the first build. Tick each box when it is
 **Styling stage**
 - [x] 9. The spiky style is wrong. Spiky hair sticks up and out from the head, according to the length of the hair. Done: see the Spiky note under Stage 5. The old crown tufts and flicked ends are gone.
 
-### Version 1 fixes (F1, F3 and F4 done; the rest planned, not started)
+### Version 1 fixes (F1, F3, F4 and F5 done; the rest planned, not started)
 
 A second checklist, from testing the enhancements. Nothing here is implemented yet, and none will be until the owner asks. Tick each box when it is built and checked.
 
@@ -264,7 +264,7 @@ A second checklist, from testing the enhancements. Nothing here is implemented y
 - [x] F4. Washing removes the lather or the conditioner effect faster at higher water pressure. Done: the rinse speed rises evenly from 1 times at the lowest setting above off to 3 times at full pressure (the strongest water is exactly three times faster; the gentlest still rinses steadily). Lather clears in about 5 seconds at the gentlest and 1.7 at full pressure; conditioner lightness in about 7 and 2.4. Checked in a browser by timing both from full cover.
 
 **Cutting stage**
-- [ ] F5. When cutting to a longer length from a shorter one, the swipes show a pot of glue instead of the scissors, with a sparkly sound instead of the snip.
+- [x] F5. When cutting to a longer length from a shorter one, the swipes show a magic wand instead of the scissors, with a sparkly sound instead of the snip. (The owner chose a magic wand in place of the original glue pot.) Done: a swipe where every changing part is getting longer shows a star-tipped wand that sweeps in beside the most visible growing part, waves twice and sends up a fountain of little stars, with a rising run of bell notes (`playSparkle`) and no snip. As soon as any part is getting shorter the scissors, clippings and snip play instead (never both). The choice is the tested rule `toolFor` in cut.ts. With reduced motion only the sound plays. The old plain chime is gone. Checked in a browser: wand on a lengthening swipe, scissors on a shortening one. The sparkle sound can't be heard here, so the owner should listen to it.
 
 **Whole game**
 - [ ] F6. The little white dots at the ends of the hair strands are not shown. (They are the cut-region markers described in the Stage 3 notes; remove them everywhere, and update those notes when built.)
@@ -289,7 +289,7 @@ A second checklist, from testing the enhancements. Nothing here is implemented y
   - Fix F3: how long does the lightening last, and how light is "lightest"? (Assumed: it stays until water rinses it off, as in F4, and the lightest is a clearly lighter tint of her current hair colour that still works with split and ombre colours. It replaces the cream and bloop effects; the squirt blob stays.)
   - Fix F4: how much faster? (Assumed: roughly three times faster at full pressure than at the gentlest, and still slow but steady at the gentlest.)
   - Fix F6: are the white dots wanted anywhere, for example as a hint of the part being cut? (Assumed: no; they are removed entirely, and the selected region is still shown by the panel and by tapping the head.)
-  - Fix F5: when a cut makes some parts longer and others shorter at once, which tool shows? (Assumed: glue for a swipe where every changing part is getting longer, and scissors as soon as any part is getting shorter.)
+  - Fix F5: when a cut makes some parts longer and others shorter at once, which tool shows? (Assumed: the wand for a swipe where every changing part is getting longer, and scissors as soon as any part is getting shorter.)
 - Enhancements, to settle when they are built (none blocks the checklist):
   - Item 3: is "the temperature control" the wall dial only, or the temperature slider in the panel as well? (Assumed: the wall dial, with the panel slider kept alongside.)
   - Item 4: should the new pressure tap replace the pressure slider in the panel, or sit alongside it? (Assumed: alongside, so there is always a non-gesture way to set it. Settled: the tap's lowest setting is off.)

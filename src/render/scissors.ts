@@ -51,6 +51,33 @@ export function drawScissors(g: Graphics, x: number, y: number, angle: number, o
   g.circle(x, y, 3.2).fill({ color: 0xffd84a, alpha }).stroke({ width: OUTLINE_THIN, color: INK, alpha });
 }
 
+/**
+ * A magic wand with its tip at (x, y), the stick running back along `angle` (radians, 0 = pointing right). `glow`
+ * (0 to 1) swells the star at the tip; `alpha` fades the whole wand in and out.
+ */
+export function drawWand(g: Graphics, x: number, y: number, angle: number, glow: number, alpha: number): void {
+  if (alpha <= 0.01) return;
+  const ca = Math.cos(angle);
+  const sa = Math.sin(angle);
+  const length = 74;
+  const bx = x - ca * length;
+  const by = y - sa * length;
+  // The stick: a dark outline with a pink barrel and a gold band near the tip.
+  g.moveTo(bx, by).lineTo(x, y).stroke({ width: 9, color: INK, alpha, cap: 'round' });
+  g.moveTo(bx, by).lineTo(x, y).stroke({ width: 5.2, color: 0xb98cff, alpha, cap: 'round' });
+  g.moveTo(x - ca * 22, y - sa * 22).lineTo(x - ca * 30, y - sa * 30).stroke({ width: 5.2, color: 0xffd84a, alpha, cap: 'butt' });
+  // The star on the end, which swells as the wand works.
+  const r = 11 + 5 * glow;
+  const pts: number[] = [];
+  for (let k = 0; k < 10; k++) {
+    const a = angle + (k * Math.PI) / 5;
+    const rr = k % 2 ? r * 0.45 : r;
+    pts.push(x + ca * 6 + Math.cos(a) * rr, y + sa * 6 + Math.sin(a) * rr);
+  }
+  g.circle(x + ca * 6, y + sa * 6, r * 1.5).fill({ color: 0xfff2a8, alpha: alpha * 0.35 * glow });
+  g.poly(pts).fill({ color: 0xffd84a, alpha }).stroke({ width: OUTLINE_THIN, color: INK, alpha, join: 'round' });
+}
+
 /** One clipped lock of hair. Its position at any time follows from where it started, so no state is kept. */
 export interface Clipping {
   x: number;

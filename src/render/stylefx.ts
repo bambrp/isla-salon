@@ -39,6 +39,26 @@ export function starBurst(random: () => number = Math.random): Spark[] {
 }
 
 /** A spray of mist coming in from the upper right and settling over the hair. */
+/** A small fountain of stars at the wand's tip, drifting up and out as the hair grows. */
+export function wandSparks(x: number, y: number, random: () => number = Math.random): Spark[] {
+  const out: Spark[] = [];
+  for (let i = 0; i < 12; i++) {
+    const a = -Math.PI / 2 + (random() - 0.5) * 2.6;
+    const speed = 30 + random() * 55;
+    out.push({
+      kind: 'star',
+      x: x + (random() - 0.5) * 24,
+      y: y + (random() - 0.5) * 24,
+      vx: Math.cos(a) * speed,
+      vy: Math.sin(a) * speed,
+      rot: random() * Math.PI,
+      size: 3.5 + random() * 3.5,
+      colour: STAR_COLOURS[i % STAR_COLOURS.length],
+    });
+  }
+  return out;
+}
+
 export function mistSpray(colour: number, random: () => number = Math.random): Spark[] {
   const out: Spark[] = [];
   for (let i = 0; i < 26; i++) {

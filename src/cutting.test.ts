@@ -1,7 +1,8 @@
 import { get } from 'svelte/store';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { LENGTHS, SWIPES_TO_CUT, lengthsOf, movingRegions, planPosition, positionOf, positionsOf } from './cut';
+import { LENGTHS, SWIPES_TO_CUT, lengthsOf, movingRegions, planPosition, positionOf, positionsOf, toolFor, type CutPlan } from './cut';
 import { buildLocks, reachAt, tableAt, SIDE_REACH } from './render/hair';
+import type { Region } from './state';
 import { chooseLength, cutSwipe, hairPosition, initialState, salon, selectCutTarget, setStage } from './state';
 
 const start = () => positionsOf(initialState().hair.length);
@@ -154,5 +155,23 @@ describe('lightening the hair', () => {
     expect(lightenColour(0x102030, 1)).toBe(0xffffff);
     const half = lightenColour(0xffd84a, 0.5);
     for (const shift of [16, 8, 0]) expect((half >> shift) & 255).toBeGreaterThanOrEqual((0xffd84a >> shift) & 255);
+  });
+});
+
+describe('the tool a swipe uses', () => {
+  const plan = (from: Partial<Record<Region, number>>, to: Partial<Record<Region, number>>): CutPlan => ({
+    from: { front: 2, left: 2, right: 2, back: 2, ...from },
+    to: { front: 2, left: 2, right: 2, back: 2, ...to },
+    swipes: 0,
+  });
+  it('is the wand when every changing part grows', () => {
+    expect(toolFor(plan({}, { front: 0, back: 1 }))).toBe('wand');
+  });
+  it('is the scissors as soon as any part gets shorter', () => {
+    expect(toolFor(plan({}, { front: 0, back: 4 }))).toBe('scissors');
+    expect(toolFor(plan({}, { left: 5 }))).toBe('scissors');
+  });
+  it('is nothing when nothing changes', () => {
+    expect(toolFor(plan({}, {}))).toBeNull();
   });
 });

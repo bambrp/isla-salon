@@ -2,6 +2,8 @@ import { mount } from 'svelte';
 import gsap from 'gsap';
 import App from './App.svelte';
 import {
+  chooseLength,
+  cutSwipe,
   rotateView,
   salon,
   selectCutTarget,
@@ -22,6 +24,8 @@ if (!target) throw new Error('Missing #app element');
 if (new URLSearchParams(window.location.search).has('debug')) {
   (window as unknown as Record<string, unknown>).salonDebug = {
     salon,
+    chooseLength,
+    cutSwipe,
     rotateView,
     setStage,
     setColour,
