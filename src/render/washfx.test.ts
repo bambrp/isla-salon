@@ -233,4 +233,30 @@ describe('the shower head', () => {
       expect(p.x + Math.cos(p.angle) * Math.hypot(p.aimX - p.x, p.aimY - p.y)).toBeCloseTo(p.aimX, 5);
     }
   });
+
+  it('follows a swiping finger only while the water is running', async () => {
+    const { followTarget } = await import('./sprayer');
+    const finger = { x: 250, y: 220 };
+    expect(followTarget(true, finger)).toBe(finger);
+    expect(followTarget(false, finger)).toBeNull();
+    expect(followTarget(true, null)).toBeNull();
+  });
+
+  it('stays at its crown while swiping with the tap off, and moves once the tap is on', async () => {
+    const { WashFx } = await import('./washfx');
+    const { followTarget } = await import('./sprayer');
+    const { SPRAY_TARGET } = await import('./sinkLayout');
+    const fx = new WashFx();
+    const chase = (running: boolean) => {
+      for (let i = 0; i < 60; i++) (fx as unknown as { chase(dt: number, g: unknown): void }).chase(1 / 60, followTarget(running, { x: 270, y: 230 }));
+    };
+    chase(false);
+    expect(fx.aim).toEqual({ x: SPRAY_TARGET.x, y: SPRAY_TARGET.y });
+    expect(fx.aimMoving()).toBe(false);
+    chase(true);
+    expect(fx.aim.x).toBeGreaterThan(SPRAY_TARGET.x + 30);
+    chase(false);
+    for (let i = 0; i < 120; i++) (fx as unknown as { chase(dt: number, g: unknown): void }).chase(1 / 60, null);
+    expect(fx.aimMoving()).toBe(false);
+  });
 });

@@ -26,6 +26,11 @@ export function sprayerPose(aimX: number, aimY: number): SprayerPose {
   return { x, y, aimX, aimY, angle: Math.atan2(aimY - y, aimX - x) };
 }
 
+/** Where the shower head follows a swiping finger to: only while the water is running; with the tap off it stays where it is. */
+export function followTarget(waterRunning: boolean, finger: { x: number; y: number } | null): { x: number; y: number } | null {
+  return waterRunning ? finger : null;
+}
+
 /** The wall bracket the hose hangs from (it never moves, so it belongs to the backdrop). */
 export function drawHolder(g: Graphics): void {
   g.roundRect(HOLDER.x - 13, HOLDER.y - 12, 26, 12, 4).fill(0xc9d6df).stroke({ width: OUTLINE, color: INK });

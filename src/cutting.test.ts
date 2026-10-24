@@ -146,3 +146,13 @@ describe('choosing a length and swiping', () => {
     expect(hairPosition(get(salon)).left).toBeGreaterThan(1);
   });
 });
+
+describe('lightening the hair', () => {
+  it('mixes a colour towards white', async () => {
+    const { lightenColour } = await import('./render/scene');
+    expect(lightenColour(0x102030, 0)).toBe(0x102030);
+    expect(lightenColour(0x102030, 1)).toBe(0xffffff);
+    const half = lightenColour(0xffd84a, 0.5);
+    for (const shift of [16, 8, 0]) expect((half >> shift) & 255).toBeGreaterThanOrEqual((0xffd84a >> shift) & 255);
+  });
+});

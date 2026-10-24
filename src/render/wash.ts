@@ -54,8 +54,6 @@ export function isShampoo(p: Product): p is Shampoo {
 const SOAK_RATE = 0.9;
 const LATHER_RATE = 0.34;
 const CLEAN_RATE = 0.25;
-const CREAM_RATE = 0.4;
-const SILKY_RATE = 0.3;
 const RINSE_FOAM = 0.18;
 const RINSE_CREAM = 0.12;
 
@@ -75,21 +73,19 @@ export function stepWashLoad(l: WashLevels, dt: number, input: WashInput): { lev
     // Harder water rinses faster.
     next.foam -= (RINSE_FOAM + 0.5 * p) * dt;
     next.cream -= (RINSE_CREAM + 0.35 * p) * dt;
-  } else if (input.applying === 'product' && input.load > 0 && input.rub > 0) {
+  } else if (input.applying === 'product' && isShampoo(input.product) && input.load > 0 && input.rub > 0) {
     // Rubbing works product in at a pace that follows how hard she is rubbed, until the squirt runs out.
     const rub = clamp(input.rub, 0, 1);
-    const main = isShampoo(input.product) ? LATHER_RATE * (0.45 + 0.55 * l.wet) : CREAM_RATE;
+    const main = LATHER_RATE * (0.45 + 0.55 * l.wet);
     const wanted = main * rub * dt;
     const gain = Math.min(wanted, input.load * GAIN_PER_LOAD);
     const share = wanted > 0 ? gain / wanted : 0;
     used = gain / GAIN_PER_LOAD;
+    // Only shampoo lathers. Conditioner is not rubbed in continuously: each swipe lightens the hair a step (conditionSwipe).
     if (isShampoo(input.product)) {
       // Lather builds faster on wet hair.
       next.foam += gain;
       next.clean += CLEAN_RATE * rub * dt * share;
-    } else {
-      next.cream += gain;
-      next.conditioned += SILKY_RATE * rub * dt * share;
     }
   }
 
@@ -103,6 +99,21 @@ export function stepWashLoad(l: WashLevels, dt: number, input: WashInput): { lev
     },
     used,
   };
+}
+
+/** Swipes it takes to bring conditioner to its full effect on the hair, and so the swipes one squirt of it lasts. */
+export const CONDITION_SWIPES = 8;
+
+/**
+ * One swipe across the hair with conditioner on it: the hair goes a step lighter (an eighth of the way to its lightest)
+ * and a step silkier, using up an eighth of the squirt. With no conditioner waiting there is no effect.
+ */
+export function conditionSwipe(l: WashLevels, load: number): { levels: WashLevels; used: number } {
+  const perSwipe = LOAD_PER_SQUIRT / CONDITION_SWIPES;
+  const used = Math.min(perSwipe, Math.max(0, load));
+  if (used <= 0) return { levels: l, used: 0 };
+  const step = used / perSwipe / CONDITION_SWIPES;
+  return { levels: { ...l, cream: clamp(l.cream + step, 0, 1), conditioned: clamp(l.conditioned + step, 0, 1) }, used };
 }
 
 export function sameLevels(a: WashLevels, b: WashLevels): boolean {

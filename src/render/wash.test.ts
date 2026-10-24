@@ -7,6 +7,8 @@ import {
   temperatureBand,
   waterLook,
   LOAD_PER_SQUIRT,
+  CONDITION_SWIPES,
+  conditionSwipe,
   stepWashLoad,
   type WashInput,
   type WashLevels,
@@ -93,14 +95,43 @@ describe('washing the hair', () => {
     expect(l.clean).toBe(1);
   });
 
-  it('conditions: cream goes on, silkiness stays after the rinse', () => {
-    let l = run({ ...DRY, wet: 1, clean: 1 }, 4, input({ applying: 'product', product: 'conditioner' }));
+  it('does not rub conditioner in smoothly: only swipes (conditionSwipe) move it', () => {
+    const l = run({ ...DRY, wet: 1, clean: 1 }, 4, input({ applying: 'product', product: 'conditioner' }));
+    expect(l.cream).toBe(0);
+    expect(l.conditioned).toBe(0);
+  });
+
+  it('lightens the hair a step with each swipe of conditioner, to the lightest on the eighth', () => {
+    let l: WashLevels = { ...DRY, wet: 1, clean: 1 };
+    let load = LOAD_PER_SQUIRT;
+    for (let k = 1; k <= CONDITION_SWIPES; k++) {
+      const r = conditionSwipe(l, load);
+      l = r.levels;
+      load -= r.used;
+      expect(l.cream).toBeCloseTo(k / CONDITION_SWIPES, 9);
+      expect(l.conditioned).toBeCloseTo(k / CONDITION_SWIPES, 9);
+    }
     expect(l.cream).toBe(1);
-    expect(l.conditioned).toBe(1);
-    l = run(l, 6, input({ applying: 'water' }));
+    expect(load).toBeCloseTo(0, 9);
+    // The squirt is used up: more swipes change nothing.
+    expect(conditionSwipe(l, load).levels).toEqual(l);
+  });
+
+  it('does nothing without conditioner waiting, and uses only what is left of a squirt', () => {
+    expect(conditionSwipe(DRY, 0).levels).toBe(DRY);
+    const half = conditionSwipe(DRY, LOAD_PER_SQUIRT / CONDITION_SWIPES / 2);
+    expect(half.levels.cream).toBeCloseTo(1 / CONDITION_SWIPES / 2, 9);
+  });
+
+  it('keeps the lightness until the water rinses it off, and the silkiness after', () => {
+    let l: WashLevels = { ...DRY, wet: 1, clean: 1, cream: 1, conditioned: 1 };
+    l = run(l, 1, input({ applying: null }));
+    expect(l.cream).toBe(1);
+    l = run(l, 8, input({ applying: 'water' }));
     expect(l.cream).toBe(0);
     expect(l.conditioned).toBe(1);
   });
+
 
   it('keeps every level between 0 and 1 whatever happens', () => {
     let l = DRY;

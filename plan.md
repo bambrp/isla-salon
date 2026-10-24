@@ -16,7 +16,7 @@ Based on `intent.md`. Decisions below were confirmed by the owner.
 | 5 Styling | Done (you asked to move on) |
 | 6 Photo export and polish | Done (you asked to move on) |
 | 7 Release | Built and release-ready; host chosen: Cloudflare Pages (you have an account); going live needs you to connect it (see below) |
-| Version 1 fixes | **Planned, not started** (checklist F1 to F6 in section 6, after the enhancements) |
+| Version 1 fixes | **F1 and F3 done; F2, F4, F5 and F6 planned, not started** (checklist F1 to F6 in section 6, after the enhancements) |
 | Open bug | Stray lines on mobile Chrome and Firefox (fan from the top-left of the picture on every stage); not yet diagnosed. The latest source was lost; work restarted from the Stage 7 source (see "Rebuilding the enhancements") |
 | Version 1 enhancements | **Being rebuilt on the Stage 7 source: 8 of 9 rebuilt** (the version you deployed has all nine) (checklist in section 6, after Stage 7) |
 
@@ -253,14 +253,14 @@ A checklist of changes requested after the first build. Tick each box when it is
 **Styling stage**
 - [x] 9. The spiky style is wrong. Spiky hair sticks up and out from the head, according to the length of the hair. Done: see the Spiky note under Stage 5. The old crown tufts and flicked ends are gone.
 
-### Version 1 fixes (planned, not started)
+### Version 1 fixes (F1 and F3 done; the rest planned, not started)
 
 A second checklist, from testing the enhancements. Nothing here is implemented yet, and none will be until the owner asks. Tick each box when it is built and checked.
 
 **Washing stage**
-- [ ] F1. When the water is off, swiping across her hair does not move the shower head.
+- [x] F1. When the water is off, swiping across her hair does not move the shower head. Done: the shower head only follows a swiping finger while the tap is on; with the tap off it stays at her crown however much you swipe (rubbing product in still works). Checked in a browser by comparing the sprayer's part of the picture during a swipe with the tap off (no change) and on (it moves).
 - [ ] F2. Coming back to the washing stage, her hair shows as dry even if it was wet when she left, and there is no drip animation.
-- [ ] F3. Conditioner: after it is squirted on, swiping no longer shows the cream effect. Instead her hair turns a lighter and lighter shade, reaching its lightest after 8 swipes.
+- [x] F3. Conditioner: after it is squirted on, swiping no longer shows the cream effect. Instead her hair turns a lighter and lighter shade, reaching its lightest after 8 swipes. Done: the cream blobs and the bloop sound are gone. Each swipe across her hair at the sink with conditioner squirted on lightens it a step (an eighth of the way to a pale tint of its own colour, so split and ombre colours stay split and ombre), easing smoothly, and uses an eighth of the squirt: one squirt lasts exactly the 8 swipes, then more swipes do nothing until you squirt again. The hair also gets silkier with each swipe. The lightness stays until water rinses it off (the rinse rate is unchanged until fix F4), and shows at the sink only, like wet hair. Swiping while the water runs rinses instead. Checked in a browser: eight steady steps lighter, nothing on the 9th and 10th swipe, and the water bringing the level back to zero while the silkiness stays.
 - [ ] F4. Washing removes the lather or the conditioner effect faster at higher water pressure.
 
 **Cutting stage**

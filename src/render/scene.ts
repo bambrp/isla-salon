@@ -16,7 +16,8 @@ import { SPARK_LIFE, drawSparks, mistSpray, starBurst, type Spark } from './styl
 import { CLIPPING_LIFE, drawClippings, drawScissors, type Clipping } from './scissors';
 import { INK, shade } from './style';
 import { SHELF_PRODUCTS, controlAt, productAt } from './sinkLayout';
-import { LOAD_PER_SQUIRT, isShampoo, isShiny, sameLevels, stepWashLoad, temperatureBand, type Applying, type Product, type WashLevels } from './wash';
+import { LOAD_PER_SQUIRT, conditionSwipe, isShampoo, isShiny, sameLevels, stepWashLoad, temperatureBand, type Applying, type Product, type WashLevels } from './wash';
+import { followTarget } from './sprayer';
 import { WashFx, foamLayout, type Bubble, type FxContext } from './washfx';
 import type { HairPaint } from './colour';
 
@@ -55,6 +56,8 @@ const PAN_DISTANCE = 700;
 const PAN_SECONDS = 0.45;
 /** The squirt blob sinks into her hair over this long. */
 const BLOB_SECONDS = 1;
+/** How far towards white the lightest hair goes, after the full eight swipes of conditioner. */
+const LIGHTEST = 0.55;
 /** A swipe is a pass of about a finger's width (design units) in one direction; smaller movements than the jitter are ignored. */
 export const SWIPE_LENGTH = 36;
 const SWIPE_JITTER = 0.8;
@@ -71,6 +74,13 @@ function regionPoint(region: Region, phi: number, reach: number): { x: number; y
   const rz = HEAD.rz + 10;
   const p = project(rx * Math.sin(az), reach, rz * Math.cos(az), phi);
   return { x: p.sx, y: p.sy, facing: p.d };
+}
+
+/** A colour mixed towards white by a fraction k (0 leaves it, 1 is white). */
+export function lightenColour(colour: number, k: number): number {
+  const t = Math.min(1, Math.max(0, k));
+  const ch = (shift: number) => Math.round(((colour >> shift) & 255) * (1 - t) + 255 * t);
+  return (ch(16) << 16) | (ch(8) << 8) | ch(0);
 }
 
 function prefersReducedMotion(): boolean {
@@ -172,11 +182,52 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
   let seenSquirts = 0;
   let rub = 0;
   let rubMoved = 0;
+  // How light the hair looks from conditioner: it eases to the cream level, so each swipe is a smooth step lighter.
+  let lightShown = 0;
   // Swipe tracking for the cutting stage: where the finger was, which way this stroke runs, and how far it has gone.
   let swipeLast: { x: number; y: number } | undefined;
   let swipeDir = 0;
   let swipeTravel = 0;
   let swipeCounted = false;
+  /**
+   * Feed the finger's position in; true when this movement completes a swipe: a pass of about a finger's width in
+   * one direction. Turning back (or round a corner) starts the next swipe, and wobbles are ignored.
+   */
+  function strokeStep(p: { x: number; y: number }): boolean {
+    if (!swipeLast) {
+      swipeLast = p;
+      return false;
+    }
+    const dx = p.x - swipeLast.x;
+    const dy = p.y - swipeLast.y;
+    swipeLast = p;
+    if (Math.hypot(dx, dy) < SWIPE_JITTER) return false;
+    const dir = Math.abs(dx) >= Math.abs(dy) ? (dx > 0 ? 1 : -1) : dy > 0 ? 2 : -2;
+    if (dir !== swipeDir) {
+      swipeDir = dir;
+      swipeTravel = 0;
+      swipeCounted = false;
+    }
+    swipeTravel += Math.hypot(dx, dy);
+    if (!swipeCounted && swipeTravel >= SWIPE_LENGTH) {
+      swipeCounted = true;
+      return true;
+    }
+    return false;
+  }
+
+  /** A swipe at the sink with conditioner on her hair: one step lighter. (Water running rinses instead.) */
+  function conditionStep(): void {
+    if (!state || state.stage !== 'wash' || waterRunning(state)) return;
+    if (load.product !== 'conditioner' || load.amount <= 0) return;
+    const r = conditionSwipe(levels, load.amount);
+    if (r.used <= 0) return;
+    levels = r.levels;
+    load = { ...load, amount: Math.max(0, load.amount - r.used) };
+    syncTicker();
+    draw();
+  }
+
   function swipeReset(): void {
     swipeLast = undefined;
     swipeDir = 0;
@@ -252,7 +303,7 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
     // Wet hair is darker; it only shows at the sink, as she is towelled off before the other stages.
     const wet = state.stage === 'wash' ? levels.wet : 0;
     const t = performance.now();
-    drawCharacter(character, state, turn.phi, locks, wet > 0.005 ? dim(paintNow, 1 - 0.24 * wet) : paintNow, Math.max(eyes.blink, !posing && (eyeTimer > 0 || waterRunning(state)) ? 1 : 0), mood);
+    drawCharacter(character, state, turn.phi, locks, paintFor(wet), Math.max(eyes.blink, !posing && (eyeTimer > 0 || waterRunning(state)) ? 1 : 0), mood);
     if (stats) {
       stats.draws++;
       stats.drawMs += performance.now() - t;
@@ -260,6 +311,24 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
     drawGuide();
     drawWash();
     drawFx();
+  }
+
+  /** The hair's paint as it looks at the sink: darker when wet, lighter with conditioner on it. */
+  function paintFor(wet: number): HairPaint {
+    let out: HairPaint = paintNow!;
+    const light = state?.stage === 'wash' ? lightShown : 0;
+    if (light > 0.005) out = lighten(out, light);
+    return wet > 0.005 ? dim(out, 1 - 0.24 * wet) : out;
+  }
+
+  /** The same paint, mixed towards white (by at most LIGHTEST), for hair with conditioner on it. */
+  function lighten(p: HairPaint, k: number): HairPaint {
+    const toward = (c: number) => lightenColour(c, k * LIGHTEST);
+    return {
+      bands: (a0) => p.bands(a0).map((b) => ({ ...b, colour: toward(b.colour) })),
+      root: (side) => toward(p.root(side)),
+      sheen: (az) => toward(p.sheen(az)),
+    };
   }
 
   /** The same paint, darkened by a factor, for wet hair. */
@@ -279,7 +348,7 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
     }
     return {
       applying: applyingNow(),
-      aimGoal,
+      aimGoal: followingFinger(),
       product: load.amount > 0 ? load.product : state.wash.product,
       selected: state.wash.product,
       rub,
@@ -313,14 +382,20 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
   function applyingNow(): Applying {
     if (!state || state.stage !== 'wash') return null;
     if (waterRunning(state)) return 'water';
-    return rub > 0.06 && load.amount > 0 ? 'product' : null;
+    // Only shampoo lathers while rubbed. Conditioner lightens the hair a step per swipe instead.
+    return rub > 0.06 && load.amount > 0 && isShampoo(load.product) ? 'product' : null;
+  }
+
+  /** Where the shower head should follow a swiping finger to: only while the water is running, otherwise it stays put. */
+  function followingFinger(): { x: number; y: number } | null {
+    return followTarget(!!state && waterRunning(state), aimGoal);
   }
 
   function soundFor(next: SalonState): WashSound {
     if (next.stage !== 'wash') return null;
     const now = applyingNow();
     if (now === 'water') return 'water';
-    if (now === 'product') return isShampoo(load.product) ? 'foam' : 'cream';
+    if (now === 'product') return 'foam';
     return null;
   }
 
@@ -338,7 +413,8 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
       (state.wash.pressure > 0 ||
         washFx.active() ||
         washFx.aimMoving() ||
-        aimGoal !== null ||
+        lightShown !== levels.cream ||
+        followingFinger() !== null ||
         levels.wet > 0.3 ||
         isShiny(levels) ||
         rub > 0 ||
@@ -385,6 +461,11 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
       if (blobAge >= BLOB_SECONDS) blobAge = -1;
     }
 
+    // The hair eases lighter (or back as the conditioner rinses off) rather than jumping a step per swipe.
+    const lightBefore = lightShown;
+    lightShown += (levels.cream - lightShown) * Math.min(1, dt * 8);
+    if (Math.abs(levels.cream - lightShown) < 0.002) lightShown = levels.cream;
+
     const stepped = stepWashLoad(levels, dt, {
       applying: applyingNow(),
       product: load.product,
@@ -401,7 +482,7 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
 
     const beforeMood = mood;
     mood = prefersReducedMotion() ? wantedMood() : stepMood(mood, dt, wantedMood());
-    if (!sameMood(mood, beforeMood) || shutBefore !== eyeTimer > 0 || Math.abs(levels.wet - before.wet) > 0.004) draw();
+    if (!sameMood(mood, beforeMood) || (state.stage === 'wash' && lightShown !== lightBefore) || shutBefore !== eyeTimer > 0 || Math.abs(levels.wet - before.wet) > 0.004) draw();
     else drawWash();
 
     sinceCommit += dt;
@@ -731,6 +812,7 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
     if (!sameLevels(stored, lastCommitted)) {
       levels = stored;
       lastCommitted = stored;
+      lightShown = stored.cream;
     }
     const running = waterRunning(next);
     if (wasApplying && !running) commit();
@@ -870,10 +952,12 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
       if (!p || !state || state.stage !== 'wash') return;
       if (regionAt(clientX, clientY) === undefined) {
         rubLast = undefined;
+        swipeReset();
         return;
       }
       if (rubLast) rubMoved += Math.hypot(p.x - rubLast.x, p.y - rubLast.y);
       rubLast = p;
+      if (strokeStep(p)) conditionStep();
       aimGoal = { x: Math.min(300, Math.max(120, p.x)), y: Math.min(300, Math.max(170, p.y)) };
       syncTicker();
     },
@@ -884,33 +968,14 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
         swipeReset();
         return;
       }
-      if (!swipeLast) {
-        swipeLast = p;
-        return;
-      }
-      const dx = p.x - swipeLast.x;
-      const dy = p.y - swipeLast.y;
-      swipeLast = p;
-      // Tiny movements are the finger resting or wobbling: they neither count nor turn the stroke round.
-      if (Math.hypot(dx, dy) < SWIPE_JITTER) return;
-      const dir = Math.abs(dx) >= Math.abs(dy) ? (dx > 0 ? 1 : -1) : dy > 0 ? 2 : -2;
-      // Turning back (or turning a corner) starts the next swipe.
-      if (dir !== swipeDir) {
-        swipeDir = dir;
-        swipeTravel = 0;
-        swipeCounted = false;
-      }
-      swipeTravel += Math.hypot(dx, dy);
-      if (!swipeCounted && swipeTravel >= SWIPE_LENGTH) {
-        swipeCounted = true;
-        cutSwipe();
-      }
+      if (strokeStep(p)) cutSwipe();
     },
     endSwipe() {
       swipeReset();
     },
     endRub() {
       rubLast = undefined;
+      swipeReset();
       aimGoal = null;
       syncTicker();
     },

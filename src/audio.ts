@@ -87,7 +87,7 @@ export function playGrow(): void {
 // Washing: running water, fizzing foam, soft conditioner
 // ---------------------------------------------------------------------------------------------------
 
-export type WashSound = 'water' | 'foam' | 'cream' | null;
+export type WashSound = 'water' | 'foam' | null;
 
 let loopNoise: AudioBuffer | undefined;
 let running:
@@ -167,8 +167,8 @@ export function updateWashSound(mode: WashSound, pressure: number, rub = 1): voi
   const t = c.currentTime;
   // Rubbing in product is louder and brighter the harder she is rubbed.
   const scrub = Math.min(1, Math.max(0, rub));
-  const level = mode === 'water' ? 0.05 + 0.2 * pressure : mode === 'foam' ? 0.012 + 0.05 * scrub : 0.01 + 0.035 * scrub;
-  const cutoff = mode === 'water' ? 900 + 3600 * pressure : mode === 'foam' ? 1800 + 2600 * scrub : 500 + 500 * scrub;
+  const level = mode === 'water' ? 0.05 + 0.2 * pressure : 0.012 + 0.05 * scrub;
+  const cutoff = mode === 'water' ? 900 + 3600 * pressure : 1800 + 2600 * scrub;
 
   if (running && running.mode === mode) {
     running.rub = scrub;
@@ -199,11 +199,6 @@ export function updateWashSound(mode: WashSound, pressure: number, rub = 1): voi
       if (Math.random() < 0.25 + 0.75 * running.rub) pop(cc, 0.04 + Math.random() * 0.07 * (0.4 + running.rub));
       if (Math.random() < 0.05 + 0.1 * running.rub) bloop(cc, 0.035);
     }, 55);
-  } else if (mode === 'cream') {
-    running.timer = window.setInterval(() => {
-      const cc = context();
-      if (cc) bloop(cc, 0.05);
-    }, 230);
   }
 }
 

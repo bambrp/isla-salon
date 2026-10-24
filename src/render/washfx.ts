@@ -56,7 +56,6 @@ export const SCENT = {
   citrus: { foam: 0xfff0a6, rim: 0xffc23a, accent: 0xff9f1c, accent2: 0xffe066 },
   tropical: { foam: 0xffd3ea, rim: 0xff86c0, accent: 0xff5fa2, accent2: 0xffd84a },
 } as const;
-const CREAM = { fill: 0xfff4fb, rim: 0xc9a7ff };
 
 function onHead(b: Bubble, phi: number): { x: number; y: number; d: number } {
   const top = HEAD.ry + 10;
@@ -82,24 +81,6 @@ function drawFoam(g: Graphics, bubbles: Bubble[], level: number, phi: number, sc
     g.circle(x - r * 0.35, y + bob - r * 0.35, Math.max(1, r * 0.22)).fill(0xffffff);
     // A thin tinted rim inside the outline gives each scent its own edge colour.
     g.circle(x, y + bob, Math.max(1, r - 2.2)).stroke({ width: 1, color: col.rim, alpha: 0.7 });
-  }
-}
-
-/** Conditioner as flat creamy blobs that sag into short drips, a different look from the round lather. */
-function drawCream(g: Graphics, bubbles: Bubble[], level: number, phi: number): void {
-  if (level <= 0.01) return;
-  const shown = bubbles
-    .filter((b) => level > b.threshold)
-    .map((b) => ({ b, ...onHead(b, phi) }))
-    .filter((p) => p.d > -14)
-    .sort((a, c) => a.d - c.d);
-  for (const { b, x, y } of shown) {
-    const grow = smoothstep(b.threshold, b.threshold + 0.2, level);
-    const r = b.r * (0.6 + 0.4 * level) * grow;
-    const drip = r * (0.8 + 1.6 * level);
-    g.roundRect(x - r * 0.35, y, r * 0.7, drip, r * 0.35).fill(CREAM.fill).stroke({ width: 1.4, color: INK });
-    g.ellipse(x, y, r * 1.35, r * 0.8).fill(CREAM.fill).stroke({ width: 1.6, color: INK });
-    g.ellipse(x - r * 0.3, y - r * 0.2, r * 0.45, r * 0.22).fill({ color: CREAM.rim, alpha: 0.55 });
   }
 }
 
@@ -343,7 +324,6 @@ export class WashFx {
     const scent = isShampoo(c.product) ? (c.product as keyof typeof SCENT) : 'mint';
     // Lather keeps the colour of the shampoo it came from, so the last shampoo used decides it.
     drawFoam(g, c.bubbles, c.levels.foam, c.phi, this.lastScent(scent, c), this.time);
-    drawCream(g, c.bubbles, c.levels.cream, c.phi);
 
     const look = waterLook(c.temperature);
     const water = c.applying === 'water';
