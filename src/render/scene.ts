@@ -14,7 +14,7 @@ import { buildLocks, reachAt, splitLocks, type CutLengths, type Lock, type Posit
 import { NO_LOOK, lookOf, sameLook, type Look } from './look';
 import { SPARK_LIFE, drawSparks, mistSpray, starBurst, wandSparks, type Spark } from './stylefx';
 import { CLIPPING_LIFE, drawClippings, drawScissors, drawWand, type Clipping } from './scissors';
-import { INK, shade } from './style';
+import { shade } from './style';
 import { SHELF_PRODUCTS, controlAt, productAt } from './sinkLayout';
 import { LOAD_PER_SQUIRT, conditionSwipe, isShampoo, isShiny, sameLevels, stepWashLoad, temperatureBand, type Applying, type Product, type WashLevels } from './wash';
 import { followTarget } from './sprayer';
@@ -138,10 +138,9 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
   const slide = new Graphics();
   slide.visible = false;
   const character = new Graphics();
-  const guide = new Graphics();
   const fx = new Graphics();
   const washG = new Graphics();
-  world.addChild(backdrop, slide, character, guide, washG, fx);
+  world.addChild(backdrop, slide, character, washG, fx);
   app.stage.addChild(world);
 
   let state: SalonState | undefined;
@@ -278,7 +277,7 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
   function applyBreath(): void {
     const y = Math.round(breath.v * 5) / 5;
     if (y === character.y) return;
-    character.y = guide.y = washG.y = y;
+    character.y = washG.y = y;
     markDirty();
   }
 
@@ -309,7 +308,6 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
       stats.draws++;
       stats.drawMs += performance.now() - t;
     }
-    drawGuide();
     drawWash();
     drawFx();
   }
@@ -369,13 +367,13 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
     const ctx = fxContext();
     if (!ctx || !state || state.stage !== 'wash') {
       washG.clear();
-      character.x = guide.x = washG.x = 0;
+      character.x = washG.x = 0;
       return;
     }
     // Cold water makes her shiver.
     const cold = ctx.applying === 'water' && temperatureBand(ctx.temperature) === 'cold' && !prefersReducedMotion();
     const shake = cold ? Math.sin(washFx.time * 55) * 1.3 * (1 - ctx.temperature * 2) : 0;
-    character.x = guide.x = washG.x = Math.max(-1.3, Math.min(1.3, shake));
+    character.x = washG.x = Math.max(-1.3, Math.min(1.3, shake));
     washFx.draw(washG, ctx);
   }
 
@@ -494,18 +492,6 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
     }
   }
 
-
-  /** In the cutting stage, a dot at the end of every visible lock in the chosen region, so you can see what you are about to cut. */
-  function drawGuide(): void {
-    guide.clear();
-    if (!state || state.stage !== 'cut') return;
-    const target = state.cutTarget;
-    const { front } = splitLocks(locks, turn.phi);
-    for (const p of front) {
-      if (target !== 'all' && regionOfAzimuth(p.lock.a0) !== target) continue;
-      guide.circle(p.apex[0], p.apex[1], 3.4).fill(0xffffff).stroke({ width: 1.8, color: INK });
-    }
-  }
 
   function drawFx(): void {
     markDirty();
@@ -943,15 +929,14 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
     if (destroyed) throw new Error('The salon is closed');
     finishPan();
     const target = RenderTexture.create({ width: PHOTO_WIDTH, height: PHOTO_HEIGHT, resolution: 1, antialias: true });
-    const was = { scale: world.scale.x, x: world.x, y: world.y, blink: eyes.blink, guide: guide.visible, fx: fx.visible, cy: character.y, eyeTimer, blobAge };
+    const was = { scale: world.scale.x, x: world.x, y: world.y, blink: eyes.blink, fx: fx.visible, cy: character.y, eyeTimer, blobAge };
     try {
       // Show her as she'd pose: eyes open, no breath, no markers, no scissors or sparks.
       eyes.blink = 0;
       eyeTimer = 0;
       blobAge = -1;
       posing = true;
-      character.y = guide.y = washG.y = 0;
-      guide.visible = false;
+      character.y = washG.y = 0;
       fx.visible = false;
       draw();
       world.scale.set(PHOTO_WIDTH / DESIGN_W);
@@ -968,9 +953,8 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
       eyeTimer = was.eyeTimer;
       posing = false;
       blobAge = was.blobAge;
-      guide.visible = was.guide;
       fx.visible = was.fx;
-      character.y = guide.y = washG.y = was.cy;
+      character.y = washG.y = was.cy;
       target.destroy(true);
       draw();
     }

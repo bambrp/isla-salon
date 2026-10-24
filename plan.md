@@ -16,7 +16,7 @@ Based on `intent.md`. Decisions below were confirmed by the owner.
 | 5 Styling | Done (you asked to move on) |
 | 6 Photo export and polish | Done (you asked to move on) |
 | 7 Release | Built and release-ready; host chosen: Cloudflare Pages (you have an account); going live needs you to connect it (see below) |
-| Version 1 fixes | **F1, F3, F4 and F5 done; F2 and F6 planned, not started** (checklist F1 to F6 in section 6, after the enhancements) |
+| Version 1 fixes | **F1, F3, F4, F5 and F6 done; F2 planned, not started** (checklist F1 to F6 in section 6, after the enhancements) |
 | Open bug | Stray lines on mobile Chrome and Firefox (fan from the top-left of the picture on every stage); not yet diagnosed. The latest source was lost; work restarted from the Stage 7 source (see "Rebuilding the enhancements") |
 | Version 1 enhancements | **Being rebuilt on the Stage 7 source: 8 of 9 rebuilt** (the version you deployed has all nine) (checklist in section 6, after Stage 7) |
 
@@ -33,7 +33,7 @@ Stage 3 notes (decisions made while building):
 - **Left and right are the player's**, the same as the colour chooser: Left is the screen-left side of the front view. The 'left' and 'right' views follow the same rule (see the convention at the top), so the left view shows the Left region face on.
 - Pressing a length cuts at once in the data, then scissors snip twice and the hair drops, with clippings in the hair's tip colour falling off the cut. Going longer needs no scissors: it grows with a soft chime. Reduced motion skips the animation. Mashing buttons ends on the last length.
 - Sound is made with Web Audio (no files): a snip and a grow chime, both respecting the mute button.
-- A white dot marks the end of each visible lock in the chosen region, so you can see what you are about to cut. If the region faces away, the panel says to turn Isla round.
+- (Removed by fix F6: the white dots that used to mark the end of each lock in the chosen region are no longer drawn.)
 - Seams between regions already blend smoothly (the reach grades between region lengths), so mixed cuts such as a long Left with a cropped Right read as one haircut.
 - Checked in a real browser: controls, tap-to-select in every view, the snip stepped through by exact time (hair intact until the second snip, gone after), reduced motion, growing, and button mashing; plus a contact sheet of mixed cuts from all four views.
 
@@ -253,7 +253,7 @@ A checklist of changes requested after the first build. Tick each box when it is
 **Styling stage**
 - [x] 9. The spiky style is wrong. Spiky hair sticks up and out from the head, according to the length of the hair. Done: see the Spiky note under Stage 5. The old crown tufts and flicked ends are gone.
 
-### Version 1 fixes (F1, F3, F4 and F5 done; the rest planned, not started)
+### Version 1 fixes (F1, F3, F4, F5 and F6 done; F2 planned, not started)
 
 A second checklist, from testing the enhancements. Nothing here is implemented yet, and none will be until the owner asks. Tick each box when it is built and checked.
 
@@ -267,7 +267,7 @@ A second checklist, from testing the enhancements. Nothing here is implemented y
 - [x] F5. When cutting to a longer length from a shorter one, the swipes show a magic wand instead of the scissors, with a sparkly sound instead of the snip. (The owner chose a magic wand in place of the original glue pot.) Done: a swipe where every changing part is getting longer shows a star-tipped wand that sweeps in beside the most visible growing part, waves twice and sends up a fountain of little stars, with a rising run of bell notes (`playSparkle`) and no snip. As soon as any part is getting shorter the scissors, clippings and snip play instead (never both). The choice is the tested rule `toolFor` in cut.ts. With reduced motion only the sound plays. The old plain chime is gone. Checked in a browser: wand on a lengthening swipe, scissors on a shortening one. The sparkle sound can't be heard here, so the owner should listen to it.
 
 **Whole game**
-- [ ] F6. The little white dots at the ends of the hair strands are not shown. (They are the cut-region markers described in the Stage 3 notes; remove them everywhere, and update those notes when built.)
+- [x] F6. The little white dots at the ends of the hair strands are not shown. Done: the cut-region markers and the layer that drew them are gone from every stage and from the camera photo; the chosen region is still shown by the panel and by tapping the head. The Stage 3 note is updated.
 
 ### Later versions (not in scope for v1, but architecture-ready)
 - Additional characters via `CharacterDef`
