@@ -7,6 +7,7 @@ import {
   temperatureBand,
   waterLook,
   LOAD_PER_SQUIRT,
+  rinseSpeed,
   CONDITION_SWIPES,
   conditionSwipe,
   stepWashLoad,
@@ -88,6 +89,35 @@ describe('washing the hair', () => {
     const hard = run(foamy, 1, input({ applying: 'water', pressure: 1 }));
     expect(hard.foam).toBeLessThan(soft.foam);
     expect(run(foamy, 4, input({ applying: 'water', pressure: 0.5 })).foam).toBe(0);
+  });
+
+  it('rinses three times faster at full pressure than at the lowest setting, both for lather and for conditioner', () => {
+    expect(rinseSpeed(0)).toBe(1);
+    expect(rinseSpeed(1)).toBe(3);
+    expect(rinseSpeed(0.5)).toBe(2);
+    const wet: WashLevels = { ...DRY, wet: 1, foam: 1, cream: 1 };
+    const low = stepWash(wet, 0.1, input({ applying: 'water', pressure: 0.001 }));
+    const full = stepWash(wet, 0.1, input({ applying: 'water', pressure: 1 }));
+    expect((1 - full.foam) / (1 - low.foam)).toBeCloseTo(3, 1);
+    expect((1 - full.cream) / (1 - low.cream)).toBeCloseTo(3, 1);
+  });
+
+  it('still rinses steadily at the lowest setting', () => {
+    const wet: WashLevels = { ...DRY, wet: 1, foam: 1, cream: 1 };
+    const l = run(wet, 8, input({ applying: 'water', pressure: 0.001 }));
+    expect(l.foam).toBe(0);
+    expect(l.cream).toBe(0);
+    expect(run(wet, 1, input({ applying: 'water', pressure: 0.001 })).foam).toBeGreaterThan(0.5);
+  });
+
+  it('takes longer to rinse the gentler the water', () => {
+    const wet: WashLevels = { ...DRY, wet: 1, foam: 1, cream: 1 };
+    let last = -1;
+    for (const p of [1, 0.75, 0.5, 0.25, 0.01]) {
+      const f = run(wet, 1, input({ applying: 'water', pressure: p })).foam;
+      expect(f).toBeGreaterThan(last);
+      last = f;
+    }
   });
 
   it('keeps the clean after rinsing', () => {

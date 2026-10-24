@@ -54,8 +54,16 @@ export function isShampoo(p: Product): p is Shampoo {
 const SOAK_RATE = 0.9;
 const LATHER_RATE = 0.34;
 const CLEAN_RATE = 0.25;
-const RINSE_FOAM = 0.18;
-const RINSE_CREAM = 0.12;
+const RINSE_FOAM = 0.2;
+const RINSE_CREAM = 0.14;
+
+/**
+ * How fast water rinses lather and conditioner off, as a multiple of the gentlest flow: 1 at the lowest setting
+ * above off, rising evenly to 3 at full pressure, so the strongest water rinses three times faster.
+ */
+export function rinseSpeed(pressure: number): number {
+  return 1 + 2 * clamp(pressure, 0, 1);
+}
 
 /** Advance the levels by dt seconds of whatever is being applied. Returns a new object; the input is untouched. */
 export function stepWash(l: WashLevels, dt: number, input: WashInput): WashLevels {
@@ -71,8 +79,8 @@ export function stepWashLoad(l: WashLevels, dt: number, input: WashInput): { lev
   if (input.applying === 'water') {
     next.wet += SOAK_RATE * (0.4 + 0.6 * p) * dt;
     // Harder water rinses faster.
-    next.foam -= (RINSE_FOAM + 0.5 * p) * dt;
-    next.cream -= (RINSE_CREAM + 0.35 * p) * dt;
+    next.foam -= RINSE_FOAM * rinseSpeed(p) * dt;
+    next.cream -= RINSE_CREAM * rinseSpeed(p) * dt;
   } else if (input.applying === 'product' && isShampoo(input.product) && input.load > 0 && input.rub > 0) {
     // Rubbing works product in at a pace that follows how hard she is rubbed, until the squirt runs out.
     const rub = clamp(input.rub, 0, 1);
