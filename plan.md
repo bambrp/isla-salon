@@ -17,7 +17,7 @@ Based on `intent.md`. Decisions below were confirmed by the owner.
 | 6 Photo export and polish | Done (you asked to move on) |
 | 7 Release | Built and release-ready; host chosen: Cloudflare Pages (you have an account); going live needs you to connect it (see below) |
 | Version 1 fixes | **F1, F3, F4, F5 and F6 done; F2 planned, not started** (checklist F1 to F6 in section 6, after the enhancements) |
-| Open bug | Stray lines on mobile Chrome and Firefox (fan from the top-left of the picture on every stage); not yet diagnosed. The latest source was lost; work restarted from the Stage 7 source (see "Rebuilding the enhancements") |
+| Stray-lines bug | **Fixed, needs the owner to confirm on a phone.** Cause: two kinds of drawing gave Pixi two identical neighbouring points, which it turns into broken (NaN) vertices; desktop graphics chips skip them but phone chips draw them as lines to the top-left corner. The two sources were the temperature dial's coloured arcs and the citrus label's half circle (both `moveTo` plus `arc`), and the outline of every hair lock when its tip or root points coincided. Now drawn as plain point lists, and hair outlines pass through `withoutRepeats`. A test builds the backdrop's triangles and checks every vertex is a number; a browser sweep of the live scene over every length, curl, style, colour mode, view and wash setting found none. Not reproducible here (the test browser skips the bad points), so the check was on the geometry itself. |
 | Version 1 enhancements | **Being rebuilt on the Stage 7 source: 8 of 9 rebuilt** (the version you deployed has all nine) (checklist in section 6, after Stage 7) |
 
 Stage 2 notes (decisions made while building):

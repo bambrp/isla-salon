@@ -71,9 +71,12 @@ function drawSink(g: Graphics): void {
     const a0 = (-125 + 250 * (i / 12) - 90) * (Math.PI / 180);
     const a1 = (-125 + 250 * ((i + 1) / 12) - 90) * (Math.PI / 180);
     const r = DIAL.r + 1.5;
-    g.moveTo(DIAL.x + Math.cos(a0) * r, DIAL.y + Math.sin(a0) * r)
-      .arc(DIAL.x, DIAL.y, r, a0, a1)
-      .stroke({ width: 7.5, color: dialColour(t) });
+    const pts: number[] = [];
+    for (let k = 0; k <= 4; k++) {
+      const a = a0 + ((a1 - a0) * k) / 4;
+      pts.push(DIAL.x + Math.cos(a) * r, DIAL.y + Math.sin(a) * r);
+    }
+    g.poly(pts, false).stroke({ width: 7.5, color: dialColour(t) });
   }
 
   // Basin: a wide white bowl behind the shoulders.
@@ -143,8 +146,8 @@ function bottleLabel(g: Graphics, product: Product, x: number, y: number): void 
   } else if (product === 'citrus') {
     // An orange segment: a half disc with its flat edge up, rind outside, spokes inside.
     const cy = y - 4;
-    g.moveTo(x + 8, cy).arc(x, cy, 8, 0, Math.PI).closePath().fill(0xff9d1c).stroke({ width: 1.4, color: INK, join: 'round' });
-    g.moveTo(x + 5.5, cy).arc(x, cy, 5.5, 0, Math.PI).closePath().fill(0xffc95e);
+    g.poly(halfDisc(x, cy, 8)).fill(0xff9d1c).stroke({ width: 1.4, color: INK, join: 'round' });
+    g.poly(halfDisc(x, cy, 5.5)).fill(0xffc95e);
     for (const k of [1, 2, 3]) {
       const a = (k * Math.PI) / 4;
       g.moveTo(x, cy + 1).lineTo(x + Math.cos(a) * 5.5, cy + Math.sin(a) * 5.5).stroke({ width: 1, color: 0xffffff, cap: 'round' });
@@ -161,6 +164,21 @@ function bottleLabel(g: Graphics, product: Product, x: number, y: number): void 
     g.circle(x - 4, y - 3, 4.2).circle(x + 4, y - 3, 4.2).fill(0xff6fb1);
     g.poly([x - 8, y - 1, x + 8, y - 1, x, y + 9]).fill(0xff6fb1);
   }
+}
+
+/**
+ * The points of a half circle (the lower half, flat edge on top). Drawn as a plain polygon rather than with
+ * `moveTo` and `arc`, because that pair repeats the first point, and a repeated point makes Pixi build a broken
+ * outline that phone graphics chips draw as stray lines to the corner of the picture.
+ */
+function halfDisc(cx: number, cy: number, r: number): number[] {
+  const out: number[] = [];
+  const steps = 10;
+  for (let i = 0; i <= steps; i++) {
+    const a = (i / steps) * Math.PI;
+    out.push(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
+  }
+  return out;
 }
 
 export function drawBackdrop(g: Graphics, scene: 'sink' | 'mirror'): void {

@@ -305,6 +305,25 @@ function reversePairs(flat: number[]): number[] {
 }
 
 /**
+ * A flat x,y outline with repeated points taken out, including the last point when it repeats the first. Pixi builds
+ * a broken (NaN) outline from two identical neighbouring points, and phone graphics chips then draw stray lines from
+ * the corner of the picture to wherever the broken point sits; desktop chips quietly skip it.
+ */
+export function withoutRepeats(flat: number[], eps = 0.01): number[] {
+  const out: number[] = [];
+  for (let i = 0; i + 1 < flat.length; i += 2) {
+    const x = flat[i];
+    const y = flat[i + 1];
+    if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+    const n = out.length;
+    if (n >= 2 && Math.abs(out[n - 2] - x) < eps && Math.abs(out[n - 1] - y) < eps) continue;
+    out.push(x, y);
+  }
+  while (out.length > 4 && Math.abs(out[0] - out[out.length - 2]) < eps && Math.abs(out[1] - out[out.length - 1]) < eps) out.length -= 2;
+  return out;
+}
+
+/**
  * The part of a flat x,y polyline between u0 and u1, where u gives each point's position along it.
  * The cut ends are interpolated, so a band edge lands exactly on u0 and u1 instead of on the nearest sample.
  */
@@ -349,10 +368,10 @@ export function drawLocks(g: Graphics, projected: ProjectedLock[], bandsOf: (loc
       const shadow = shade(lit, SHADOW_FACTOR);
       const tip = u1 >= 1 ? p.apex : [];
 
-      g.poly([...left, ...tip, ...reversePairs(right)]).fill(shadow);
-      g.poly([...left, ...reversePairs(boundary)]).fill(lit);
+      g.poly(withoutRepeats([...left, ...tip, ...reversePairs(right)])).fill(shadow);
+      g.poly(withoutRepeats([...left, ...reversePairs(boundary)])).fill(lit);
     }
-    g.poly([...p.left, p.apex[0], p.apex[1], ...reversePairs(p.right)]).stroke({
+    g.poly(withoutRepeats([...p.left, p.apex[0], p.apex[1], ...reversePairs(p.right)])).stroke({
       width: OUTLINE_THIN,
       color: INK,
       join: 'round',
