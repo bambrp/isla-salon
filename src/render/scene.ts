@@ -2,7 +2,7 @@ import 'pixi.js/unsafe-eval';
 import { Application, Container, Graphics, RenderTexture } from 'pixi.js';
 import gsap from 'gsap';
 import { PHOTO_HEIGHT, PHOTO_WIDTH } from '../photo';
-import { STAGES, VIEWS, commitWash, cutSwipe, hairPosition, sceneFor, washLevels, waterRunning, type Region, type SalonState, type Stage } from '../state';
+import { STAGES, VIEWS, commitWash, cutSwipe, hairPosition, sceneFor, setShine, washLevels, waterRunning, type Region, type SalonState, type Stage } from '../state';
 import { playBoing, playPat, playSnip, playSparkle, playSqueak, playSpray, playSquirt, updateWashSound, type WashSound } from '../audio';
 import { REGION_AZIMUTH, SWIPES_TO_CUT, movingRegions, positionsOf, regionOfAzimuth, toolFor, type CutPlan } from '../cut';
 import { drawBackdrop } from './backdrop';
@@ -166,6 +166,10 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
 
   // The washing: the hair's wet, lather and cream levels, the particles, and the clock that runs them.
   const washFx = new WashFx();
+  // Shine: set when conditioned hair has been rinsed, kept through every stage, and lost the moment water is next applied.
+  let shine = false;
+  let conditionedSinceWet = false;
+  const shineNow = (): boolean => shine || (conditionedSinceWet && isShiny(levels));
   let levels: WashLevels = { wet: 0, foam: 0, cream: 0, clean: 0.4, conditioned: 0 };
   let lastCommitted: WashLevels = levels;
   let bubbles: Bubble[] = [];
@@ -222,6 +226,7 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
     const r = conditionSwipe(levels, load.amount);
     if (r.used <= 0) return;
     levels = r.levels;
+    conditionedSinceWet = true;
     load = { ...load, amount: Math.max(0, load.amount - r.used) };
     playSqueak();
     syncTicker();
@@ -356,6 +361,7 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
       pressure: state.wash.pressure,
       temperature: state.wash.temperature,
       levels,
+      shine: shineNow(),
       phi: turn.phi,
       tips,
       bubbles,
@@ -369,6 +375,7 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
     if (!ctx || !state || state.stage !== 'wash') {
       washG.clear();
       character.x = washG.x = 0;
+      if (state && shine && !posing) washFx.drawShine(washG, turn.phi);
       return;
     }
     // Cold water makes her shiver.
@@ -408,6 +415,7 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
   function wantsTicker(): boolean {
     if (!state) return false;
     if (!isCalm(mood) || !sameMood(mood, wantedMood())) return true;
+    if (shine) return true;
     return (
       state.stage === 'wash' &&
       (state.wash.pressure > 0 ||
@@ -416,7 +424,7 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
         lightShown !== levels.cream ||
         followingFinger() !== null ||
         levels.wet > 0.3 ||
-        isShiny(levels) ||
+        shineNow() ||
         rub > 0 ||
         rubMoved > 0 ||
         blobAge >= 0 ||
@@ -793,6 +801,7 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
       prevCut = null;
       swipeReset();
       mood = CALM;
+      conditionedSinceWet = false;
       load = { ...load, amount: 0 };
       blobAge = -1;
       rub = 0;
@@ -838,8 +847,22 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
       lastCommitted = stored;
       lightShown = stored.cream;
     }
+    if (next.hair.shine !== shine) shine = next.hair.shine;
     const running = waterRunning(next);
-    if (wasApplying && !running) commit();
+    if (running && shine) {
+      // Water on her hair washes the shine off.
+      shine = false;
+      setShine(false);
+    }
+    if (wasApplying && !running) {
+      // The rinse is over: conditioned hair that has been rinsed clean now shines, and keeps shining until wetted again.
+      if (conditionedSinceWet && isShiny(levels)) {
+        shine = true;
+        setShine(true);
+      }
+      conditionedSinceWet = false;
+      commit();
+    }
     wasApplying = running;
     if (next.stage !== 'wash') washFx.clear();
     updateWashSound(soundFor(next), next.wash.pressure, rub);

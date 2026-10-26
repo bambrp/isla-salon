@@ -5,7 +5,7 @@ import { DIAL, TAP, SHELF_PRODUCTS, SPRAY_TARGET, bottleHeight } from './sinkLay
 import { dialColour, tapAngle } from './backdrop';
 import { drawSprayer, sprayerPose, type SprayerPose } from './sprayer';
 import { INK } from './style';
-import { isShampoo, isShiny, streamFor, waterLook, type Applying, type Product, type WashLevels } from './wash';
+import { isShampoo, streamFor, waterLook, type Applying, type Product, type WashLevels } from './wash';
 
 /**
  * The washing layer: water stream, splashes, drips, steam and chill, foam and cream on the hair, scent
@@ -114,6 +114,8 @@ export interface Blob {
 }
 
 export interface FxContext {
+  /** True while her hair is shiny, which sparkles. */
+  shine: boolean;
   applying: Applying;
   /** The product on the hair (it decides the lather's scent and colour); the bottle chosen on the shelf is `selected`. */
   product: Product;
@@ -331,7 +333,7 @@ export class WashFx {
     this.tint(g, look, fade);
     if (water) this.stream(g, c, look.tint);
     this.particles(g);
-    if (isShiny(c.levels)) this.sparkle(g, c.phi);
+    if (c.shine) this.sparkle(g, c.phi);
 
     if (c.blob) this.blob(g, c.blob);
     this.sinkControls(g, c);
@@ -488,6 +490,12 @@ export class WashFx {
   }
 
   /** Twinkles on the hair once it has been washed, conditioned and rinsed. */
+  /** Just the shine's sparkles, for the stages after the sink, where nothing else of the washing shows. */
+  drawShine(g: Graphics, phi: number): void {
+    g.clear();
+    this.sparkle(g, phi);
+  }
+
   private sparkle(g: Graphics, phi: number): void {
     const spots: Array<[number, number, number]> = [
       [-48 * DEG, -64, 0],

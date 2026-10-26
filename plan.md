@@ -16,7 +16,7 @@ Based on `intent.md`. Decisions below were confirmed by the owner.
 | 5 Styling | Done (you asked to move on) |
 | 6 Photo export and polish | Done (you asked to move on) |
 | 7 Release | Built and release-ready; host chosen: Cloudflare Pages (you have an account); going live needs you to connect it (see below) |
-| Version 1 fixes | **F1, F3 to F9 done; F2 (widened), F10 to F12 planned, not started** (checklist F1 to F12 in section 6, after the enhancements) |
+| Version 1 fixes | **F1, F3 to F10 done; F2 (widened), F11 and F12 planned, not started** (checklist F1 to F12 in section 6, after the enhancements) |
 | Stray-lines bug | **Fixed, needs the owner to confirm on a phone.** Cause: two kinds of drawing gave Pixi two identical neighbouring points, which it turns into broken (NaN) vertices; desktop graphics chips skip them but phone chips draw them as lines to the top-left corner. The two sources were the temperature dial's coloured arcs and the citrus label's half circle (both `moveTo` plus `arc`), and the outline of every hair lock when its tip or root points coincided. Now drawn as plain point lists, and hair outlines pass through `withoutRepeats`. A test builds the backdrop's triangles and checks every vertex is a number; a browser sweep of the live scene over every length, curl, style, colour mode, view and wash setting found none. Not reproducible here (the test browser skips the bad points), so the check was on the geometry itself. |
 | Version 1 enhancements | **Rebuild finished: 1 to 8 are back in the source; 9 (real spiky style) is withdrawn, because the spiky style is being removed (fix F9)** (checklist in section 6, after Stage 7) |
 
@@ -253,7 +253,7 @@ A checklist of changes requested after the first build. Tick each box when it is
 **Styling stage**
 - [x] 9. The spiky style is wrong. Spiky hair sticks up and out from the head, according to the length of the hair. Done: see the Spiky note under Stage 5. The old crown tufts and flicked ends are gone.
 
-### Version 1 fixes (F1, F3 to F9 done; F2 and F10 to F12 planned, not started)
+### Version 1 fixes (F1, F3 to F10 done; F2, F11 and F12 planned, not started)
 
 A second checklist, from testing the enhancements. Nothing here is implemented yet, and none will be until the owner asks. Tick each box when it is built and checked.
 
@@ -266,7 +266,7 @@ A second checklist, from testing the enhancements. Nothing here is implemented y
 **Washing stage, second batch (added after F6; planned only)**
 - [x] F7. When the water is set to its coldest, Isla clenches her teeth to match how cold it feels: the mouth shows a row of clenched teeth, easing in and out with the same fade as the other cold and hot reactions. Done: a new `clench` value in her mood is 1 at the coldest setting and gone by about an eighth of the way up the temperature control (merely cool water shows no teeth). It rises in a second and fades in three like the colour. The teeth do not fade in: the mouth opens up (the smile flattens into a wide grimace and the lower lip drops) to show a solid row of white teeth, with a line down each gap and one across the bite, and closes again as the value falls (owner's correction). They follow the head round and dim only as she turns away. Checked in a browser at the coldest setting with the water running, and by unit tests.
 - [x] F8. The conditioner effect (F3) gets much lighter, and each conditioner swipe plays a squeaky sound, like clean hair being rubbed. Done: after the full eight swipes the hair is 88 per cent of the way to white (it was 55), still tinted by its own colour; each swipe that lightens the hair plays a short rising rubber squeak (`playSqueak`, a little different in pitch each time). Checked in a browser after ten swipes. The squeak can't be heard here, so the owner should listen to it.
-- [ ] F10. The shiny hair status that conditioner gives stays until her hair is made wet again (it is not lost by leaving the stage or by styling).
+- [x] F10. The shiny hair status that conditioner gives stays until her hair is made wet again (it is not lost by leaving the stage or by styling). Done: shine is now a stored status (`hair.shine`) rather than something worked out from the levels. It is earned when conditioner has been swiped on and then rinsed off clean (the rinse finishing, water off), kept through the colour, cut and style stages, where her hair still sparkles, and lost the moment water is next applied to her hair. Wetting shiny hair again does not bring the shine back unless she is conditioned again; Start over clears it. Checked in a browser through condition, rinse, water off, the style stage, back at the sink and water on again.
 - [ ] F11. All washing status except shine (wet, drips, lather and conditioner lightness) is cancelled globally when she leaves the washing stage, and when she returns she always begins with dry hair. Shine is the one exception: it is kept when she leaves and when she returns, and is cancelled only by water being applied to her hair (settled by the owner). This widens F2, which only covered the wetness and drips.
 
 **Styling stage**

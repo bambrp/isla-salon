@@ -134,3 +134,14 @@ describe('resetting', () => {
     expect(get(salon).epoch).toBe(2);
   });
 });
+
+describe('shine', () => {
+  it('is a stored status that a reset clears', async () => {
+    const { setShine, resetSalon } = await import('./state');
+    expect(get(salon).hair.shine).toBe(false);
+    setShine(true);
+    expect(get(salon).hair.shine).toBe(true);
+    resetSalon();
+    expect(get(salon).hair.shine).toBe(false);
+  });
+});

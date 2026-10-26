@@ -41,6 +41,8 @@ export interface SalonState {
     wetness: number;
     cleanliness: number;
     conditioned: number;
+    /** True while her hair is shiny (conditioned, then rinsed). It stays through every stage until water next wets her hair. */
+    shine: boolean;
     /** Shampoo lather and conditioner cream on the hair right now (0 to 1). */
     foam: number;
     cream: number;
@@ -76,6 +78,7 @@ export function initialState(character: CharacterDef = ISLA): SalonState {
       wetness: 0,
       cleanliness: 0.4,
       conditioned: 0,
+      shine: false,
       foam: 0,
       cream: 0,
       colour: { mode: 'single', a: character.hair, b: character.hair },
@@ -256,6 +259,11 @@ export function commitWash(levels: WashLevels): void {
           },
         },
   );
+}
+
+/** Set whether her hair is shiny. */
+export function setShine(shine: boolean): void {
+  salon.update((s) => (s.hair.shine === shine ? s : { ...s, hair: { ...s.hair, shine } }));
 }
 
 /** How tightly the hair is curled: 0 is straight, 3 is tight curls. */
