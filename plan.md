@@ -59,7 +59,7 @@ Stage 6 notes (what is built):
 - Checked in a real browser: the photo (size, name, content, no interface in it, same size in landscape, other views), start over, remembered mute, blink, idle cost, reduced motion; plus the accessibility audit and every earlier check. Test pages can add ?still to freeze the idle animation.
 
 Stage 5 notes (what is built):
-- Styling has a Curl row (Straight, Waves, Curls, Tight curls, each with a little head showing the waviness) and a Product row (None, Flat; the Spiky product was removed by fix F9). Curl and product combine freely. Every button is at least 44px.
+- Styling has a Curl row (Straight, Waves, Curls, Tight curls, each with a little head showing the waviness) and a Product row (None, Sleek; the Spiky product was removed by fix F9, and the owner relabelled Flat as Sleek, though the product is still called `flat` in the code). Curl and product combine freely. Every button is at least 44px.
 - Curl swings each lock side to side and in and out, so the outline ripples in every view; tighter curl waves faster and wider, fills the hair out a little, and lifts it so curled hair hangs slightly shorter than straight.
 - Spiky: removed (version 1 fix F9). It had been reworked in enhancement 9, which is withdrawn; the product is gone from the panel, the state and the hair builder.
 - Flat presses the hair thin and sleek against the head, removes the natural wave and most (85%) of the curl, so tight curls with flat product come out only gently wavy.
