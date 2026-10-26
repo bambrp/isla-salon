@@ -1,7 +1,7 @@
 import { Graphics, GraphicsContext, buildContextBatches } from 'pixi.js';
 import { describe, expect, it } from 'vitest';
 import { drawBackdrop } from './backdrop';
-import { withoutRepeats } from './hair';
+import { buildLocks, drawLocks, splitLocks, withoutRepeats } from './hair';
 
 /** Build the triangles Pixi would send to the graphics card, and report any vertex that is not a finite number. */
 function scan(g: Graphics): { bad: number; total: number; sample: number[][] } {
@@ -39,5 +39,21 @@ describe('withoutRepeats', () => {
   });
   it('drops points that are not finite', () => {
     expect(withoutRepeats([0, 0, NaN, 1, 4, 4, 8, 0])).toEqual([0, 0, 4, 4, 8, 0]);
+  });
+});
+
+describe('hair outlines sent to the graphics card', () => {
+  it('are all finite for every view, including the stubble and the fade to shaved', () => {
+    for (const p of [0, 3, 5, 5.5, 6, 6.4, 6.9, 7]) {
+      const locks = buildLocks({ front: p, left: p, right: p, back: p }, 6);
+      for (const phi of [0, 90 * (Math.PI / 180), Math.PI, -90 * (Math.PI / 180)]) {
+        const g = new Graphics();
+        const { behind, front } = splitLocks(locks, phi);
+        const bands = () => [{ u0: 0, u1: 1, colour: 0xf2b632 }];
+        drawLocks(g, behind, bands);
+        drawLocks(g, front, bands);
+        expect(scan(g).bad).toBe(0);
+      }
+    }
   });
 });

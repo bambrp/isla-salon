@@ -46,7 +46,7 @@ describe('buildLocks', () => {
     expect(locks.every((l) => Math.abs(l.a0) > 1 * DEG)).toBe(true);
   });
 
-  it('keeps every sample finite, ordered top to bottom and inside the design box, for all 1296 cuts', () => {
+  it('keeps every sample finite, ordered top to bottom and inside the design box, for all 4096 cuts', () => {
     // Collect problems and assert once: a million separate expect() calls would be needlessly slow.
     const problems: string[] = [];
     for (const lengths of allCombinations()) {
@@ -64,7 +64,7 @@ describe('buildLocks', () => {
     expect(problems).toEqual([]);
   });
 
-  it('never lets hair cover the eyes, brows or cheeks, for all 1296 cuts', () => {
+  it('never lets hair cover the eyes, brows or cheeks, for all 4096 cuts', () => {
     // Eyes sit at azimuth ~23 deg, brows 12-36 deg, cheeks ~40 deg; the face band is y from -18 downwards.
     const problems: string[] = [];
     for (const lengths of allCombinations()) {
@@ -268,5 +268,42 @@ describe('sheenRuns', () => {
     const back = sheenRuns(buildLocks(uniform('shoulders'), 6), Math.PI).flat();
     expect(front.every((p) => p.az < 0)).toBe(true);
     expect(back.every((p) => p.az > 0)).toBe(true);
+  });
+});
+
+describe('trimmed and shaved', () => {
+  const thickness = (l: Length) => Math.max(...buildLocks(uniform(l), 6).map((k) => k.th));
+
+  it('shaved has no hair at all', () => {
+    expect(buildLocks(uniform('shaved'), 6)).toEqual([]);
+  });
+
+  it('trimmed is a full head of hair lying close to the scalp, thinner than a crop', () => {
+    const trimmed = buildLocks(uniform('trimmed'), 6);
+    expect(trimmed).toHaveLength(LOCK_COUNT);
+    expect(thickness('trimmed')).toBeLessThan(1.5);
+    expect(thickness('short3')).toBeGreaterThan(thickness('trimmed') + 1);
+    expect(trimmed.every((k) => k.alpha === 1 && k.stubble === 1)).toBe(true);
+  });
+
+  it('is shorter than a crop everywhere', () => {
+    for (const deg of [0, 45, 90, 135, 180, -90]) expect(reachAt(deg * DEG, uniform('trimmed'))).toBeLessThan(reachAt(deg * DEG, uniform('short3')));
+  });
+
+  it('fades out gradually between trimmed and shaved, and thickens gradually between crop and trimmed', () => {
+    const at = (p: number) => buildLocks({ front: p, left: p, right: p, back: p }, 6);
+    expect(at(6.5)[0].alpha).toBeGreaterThan(0);
+    expect(at(6.5)[0].alpha).toBeLessThan(1);
+    expect(at(6.95).length).toBeLessThanOrEqual(LOCK_COUNT);
+    expect(at(7)).toEqual([]);
+    const th = (p: number) => at(p)[1].th;
+    expect(th(5.5)).toBeLessThan(th(5));
+    expect(th(5.5)).toBeGreaterThan(th(6));
+  });
+
+  it('shaves only the chosen part', () => {
+    const locks = buildLocks({ front: 'shoulders', left: 'shoulders', right: 'shoulders', back: 'shaved' }, 6);
+    expect(locks.length).toBeGreaterThan(0);
+    expect(locks.length).toBeLessThan(LOCK_COUNT);
   });
 });

@@ -12,7 +12,7 @@ export type { Applying, ColourMode, HairColour, Product, Shampoo, WashLevels };
  */
 export type Stage = 'wash' | 'colour' | 'cut' | 'style';
 export type View = 'front' | 'left' | 'back' | 'right';
-export type Length = 'back' | 'shoulders' | 'bob' | 'short1' | 'short2' | 'short3';
+export type Length = 'back' | 'shoulders' | 'bob' | 'short1' | 'short2' | 'short3' | 'trimmed' | 'shaved';
 export type Region = 'front' | 'left' | 'right' | 'back';
 /** What the cutting stage is about to change: one region, or the whole head. */
 export type CutTarget = Region | 'all';

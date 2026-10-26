@@ -9,7 +9,7 @@ const start = () => positionsOf(initialState().hair.length);
 
 describe('cut positions', () => {
   it('number the lengths from longest to shortest', () => {
-    expect(LENGTHS.map(positionOf)).toEqual([0, 1, 2, 3, 4, 5]);
+    expect(LENGTHS.map(positionOf)).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
     expect(lengthsOf({ front: 0.4, left: 2.6, right: 5, back: 1.49 })).toEqual({ front: 'back', left: 'short1', right: 'short3', back: 'shoulders' });
   });
 

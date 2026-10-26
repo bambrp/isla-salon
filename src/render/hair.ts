@@ -24,6 +24,8 @@ export const SIDE_REACH: Record<Length, number> = {
   short1: 292,
   short2: 262,
   short3: 232,
+  trimmed: 220,
+  shaved: 220,
 };
 
 /**
@@ -37,6 +39,8 @@ export const BACK_REACH: Record<Length, number> = {
   short1: 322,
   short2: 300,
   short3: 272,
+  trimmed: 254,
+  shaved: 254,
 };
 
 /**
@@ -50,6 +54,8 @@ export const FRONT_REACH: Record<Length, number> = {
   short1: 234,
   short2: 212,
   short3: 194,
+  trimmed: 188,
+  shaved: 188,
 };
 
 /** Front-sector locks with a reach (relative to the head centre) at or below this are swept to the sides. */
@@ -85,6 +91,10 @@ export interface Lock {
   /** Tip height relative to the head centre. */
   reach: number;
   swept: boolean;
+  /** 0 to 1: how solid the lock is. Hair thins out to nothing as it is shaved off. */
+  alpha: number;
+  /** 0 to 1: how much of a close-clipped stubble this is (1 is the clipper cut). */
+  stubble: number;
   samples: LockSample[];
 }
 
@@ -94,7 +104,19 @@ export type Positions = Record<Region, number>;
 /** What the hair builders accept: whole lengths, or positions between them while a cut is in progress. */
 export type CutLengths = Record<Region, Length | number>;
 
-const ORDER: readonly Length[] = ['back', 'shoulders', 'bob', 'short1', 'short2', 'short3'];
+const ORDER: readonly Length[] = ['back', 'shoulders', 'bob', 'short1', 'short2', 'short3', 'trimmed', 'shaved'];
+
+/**
+ * How much of the hair is there at each length: all of it, until shaved, when there is none. A cut part-way from
+ * trimmed to shaved fades the stubble out, so the head grows bare gradually.
+ */
+export const DENSITY: Record<Length, number> = { back: 1, shoulders: 1, bob: 1, short1: 1, short2: 1, short3: 1, trimmed: 1, shaved: 0 };
+
+/**
+ * How much of a normal head of hair's thickness the hair has: 1 down to a crop, then thinning to a clipper
+ * cut (grade 1, 3 mm), which lies as close to the scalp as stubble does.
+ */
+export const BULK: Record<Length, number> = { back: 1, shoulders: 1, bob: 1, short1: 1, short2: 1, short3: 1, trimmed: 0, shaved: 0 };
 
 /** A reach table read at a length, or half way between two of them. */
 export function tableAt(table: Record<Length, number>, at: Length | number): number {
@@ -117,16 +139,30 @@ function wrap(a: number): number {
  * the screen-right side of the front view at +90, and Left is at -90.
  */
 export function reachAt(az: number, lengths: CutLengths): number {
-  const centres = [
+  return blendRegions(az, [
     tableAt(FRONT_REACH, lengths.front),
     tableAt(SIDE_REACH, lengths.right),
     tableAt(BACK_REACH, lengths.back),
     tableAt(SIDE_REACH, lengths.left),
-  ];
+  ]) - HEAD.cy;
+}
+
+/** A value for each region (front, right, back, left), blended smoothly round the head to the azimuth az. */
+function blendRegions(az: number, centres: number[]): number {
   const t = wrap(az) / (Math.PI / 2);
   const q = Math.min(3, Math.floor(t));
   const f = smoothstep(0, 1, t - q);
-  return lerp(centres[q], centres[(q + 1) % 4], f) - HEAD.cy;
+  return lerp(centres[q], centres[(q + 1) % 4], f);
+}
+
+/** The same blend for a table of per-length values that does not depend on the region (density, bulk). */
+function blendAt(table: Record<Length, number>, az: number, lengths: CutLengths): number {
+  return blendRegions(az, [tableAt(table, lengths.front), tableAt(table, lengths.right), tableAt(table, lengths.back), tableAt(table, lengths.left)]);
+}
+
+/** How much hair there is at this azimuth, 0 (bare skin) to 1. */
+export function densityAt(az: number, lengths: CutLengths): number {
+  return blendAt(DENSITY, az, lengths);
 }
 
 /**
@@ -206,6 +242,10 @@ export function buildLocks(lengths: CutLengths, seed: number, look: Look = NO_LO
 
   for (let i = 0; i < LOCK_COUNT; i++) {
     const a0 = -Math.PI + ((i + 0.5) * 2 * Math.PI) / LOCK_COUNT;
+    const alpha = smoothstep(0, 0.9, densityAt(a0, lengths));
+    // Shaved: no hair is left here at all.
+    if (alpha < 0.02) continue;
+    const bulk = blendAt(BULK, a0, lengths);
     let reach = reachAt(a0, lengths);
     reach += (rand() - 0.5) * 2 * (reach > 0 ? 7 : 3);
     // Curls spring the hair up, so it hangs a little shorter the tighter it is.
@@ -218,9 +258,11 @@ export function buildLocks(lengths: CutLengths, seed: number, look: Look = NO_LO
     // Longer hair is fuller; every other lock sits slightly proud for a layered look.
     // Fuller with curl, and pressed close to the head with flat product.
     const fullness = 3 + 7 * smoothstep(-30, 180, reach) + (i % 2) * 2 + 1.5 * look.curl;
-    const th = fullness + (1.5 - fullness) * look.flat;
+    const slick = fullness + (1.5 - fullness) * look.flat;
+    // A clipper cut lies as close as stubble: 3 mm, which is barely any thickness at all.
+    const th = 1.3 + (slick - 1.3) * bulk;
     const phase = rand() * Math.PI * 2;
-    locks.push({ index: i, a0, th, reach, swept, samples: buildSamples(a0, th, reach, swept, phase, look) });
+    locks.push({ index: i, a0, th, reach, swept, alpha, stubble: 1 - bulk, samples: buildSamples(a0, th, reach, swept, phase, look) });
   }
   return locks;
 }
@@ -362,12 +404,14 @@ export function drawLocks(g: Graphics, projected: ProjectedLock[], bandsOf: (loc
       const shadow = shade(lit, SHADOW_FACTOR);
       const tip = u1 >= 1 ? p.apex : [];
 
-      g.poly(withoutRepeats([...left, ...tip, ...reversePairs(right)])).fill(shadow);
-      g.poly(withoutRepeats([...left, ...reversePairs(boundary)])).fill(lit);
+      g.poly(withoutRepeats([...left, ...tip, ...reversePairs(right)])).fill({ color: shadow, alpha: p.lock.alpha });
+      g.poly(withoutRepeats([...left, ...reversePairs(boundary)])).fill({ color: lit, alpha: p.lock.alpha });
     }
     g.poly(withoutRepeats([...p.left, p.apex[0], p.apex[1], ...reversePairs(p.right)])).stroke({
       width: OUTLINE_THIN,
+      // Stubble is outlined only faintly, so a close crop reads as short hair rather than a cap of petals.
       color: INK,
+      alpha: p.lock.alpha * (1 - 0.65 * p.lock.stubble),
       join: 'round',
       cap: 'round',
     });

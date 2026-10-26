@@ -1,6 +1,6 @@
 import type { Graphics } from 'pixi.js';
 import { DEG, HEAD, clamp, lerp, mulberry32, project, smoothstep } from './geometry';
-import { FRONT_SECTOR, reachAt, type CutLengths } from './hair';
+import { FRONT_SECTOR, densityAt, reachAt, type CutLengths } from './hair';
 import { DIAL, TAP, SHELF_PRODUCTS, SPRAY_TARGET, bottleHeight } from './sinkLayout';
 import { dialColour, tapAngle } from './backdrop';
 import { drawSprayer, sprayerPose, type SprayerPose } from './sprayer';
@@ -39,6 +39,8 @@ export function foamLayout(lengths: CutLengths, seed: number): Bubble[] {
   const out: Bubble[] = [];
   for (let i = 0; i < BUBBLE_COUNT; i++) {
     const az = (rand() * 2 - 1) * Math.PI;
+    // Nothing to lather where the head is bare.
+    if (densityAt(az, lengths) < 0.5) continue;
     const reach = reachAt(az, lengths);
     const inFront = Math.abs(az) < FRONT_SECTOR;
     // Front: only the crown and forehead, clear of the brows. Elsewhere: down to just above the ends, at most to the shoulders.

@@ -40,7 +40,7 @@ describe('looks', () => {
     expect(buildLocks(uniform('shoulders'), 6, lookOf(3, 'flat'))).toEqual(buildLocks(uniform('shoulders'), 6, lookOf(3, 'flat')));
   });
 
-  it('keeps every sample finite, ordered and inside the design box, for all 1296 cuts and every look', () => {
+  it('keeps every sample finite, ordered and inside the design box, for all 4096 cuts and every look', () => {
     const problems: string[] = [];
     for (const look of LOOKS) {
       for (const lengths of allCombinations()) {
@@ -59,7 +59,7 @@ describe('looks', () => {
     expect(problems.slice(0, 5)).toEqual([]);
   });
 
-  it('never lets styled hair cover the eyes, brows or cheeks, for all 1296 cuts and every look', () => {
+  it('never lets styled hair cover the eyes, brows or cheeks, for all 4096 cuts and every look', () => {
     const problems: string[] = [];
     for (const look of LOOKS) {
       for (const lengths of allCombinations()) {

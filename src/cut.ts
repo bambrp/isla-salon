@@ -4,13 +4,13 @@ import type { Length, Region, View } from './state';
 const DEG = Math.PI / 180;
 
 /**
- * Cutting helpers that need no drawing: the six lengths in order, how regions map onto the head, and how to
+ * Cutting helpers that need no drawing: the eight lengths in order, how regions map onto the head, and how to
  * compare two cuts. Left and right regions are as the player sees Isla from the front (Left is the screen-left
  * side of the front view), the same as the colour chooser.
  */
 
 /** Longest first. A higher index is a shorter cut. */
-export const LENGTHS: readonly Length[] = ['back', 'shoulders', 'bob', 'short1', 'short2', 'short3'];
+export const LENGTHS: readonly Length[] = ['back', 'shoulders', 'bob', 'short1', 'short2', 'short3', 'trimmed', 'shaved'];
 
 export const LENGTH_LABELS: Record<Length, string> = {
   back: 'Long',
@@ -19,6 +19,8 @@ export const LENGTH_LABELS: Record<Length, string> = {
   short1: 'Short',
   short2: 'Shorter',
   short3: 'Crop',
+  trimmed: 'Trimmed',
+  shaved: 'Shaved',
 };
 
 export const REGIONS: readonly Region[] = ['front', 'left', 'right', 'back'];
@@ -73,7 +75,7 @@ export function isShorter(from: Length, to: Length): boolean {
 /** How many swipes across her hair it takes to move to a chosen length. */
 export const SWIPES_TO_CUT = 8;
 
-/** A length's place along the list: 0 is the longest, 5 the shortest. */
+/** A length's place along the list: 0 is the longest, 7 (shaved) the shortest. */
 export type Positions = Record<Region, number>;
 
 /**

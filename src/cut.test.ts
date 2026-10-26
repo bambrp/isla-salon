@@ -59,7 +59,7 @@ describe('comparing cuts', () => {
     expect(isShorter('back', 'bob')).toBe(true);
     expect(isShorter('short3', 'bob')).toBe(false);
     expect(isShorter('bob', 'bob')).toBe(false);
-    expect(LENGTHS).toHaveLength(6);
+    expect(LENGTHS).toHaveLength(8);
   });
 
   it('lists only the regions that changed', () => {

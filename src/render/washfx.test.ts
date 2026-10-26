@@ -260,3 +260,11 @@ describe('the shower head', () => {
     expect(fx.aimMoving()).toBe(false);
   });
 });
+
+describe('lather on a bare head', () => {
+  it('has no bubbles when shaved, and some when not', async () => {
+    const { foamLayout } = await import('./washfx');
+    expect(foamLayout({ front: 7, left: 7, right: 7, back: 7 }, 6)).toEqual([]);
+    expect(foamLayout({ front: 1, left: 1, right: 1, back: 1 }, 6).length).toBeGreaterThan(50);
+  });
+});

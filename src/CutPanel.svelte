@@ -14,6 +14,9 @@
 
   /** A little head with hair down to the length, so each button shows what it does. */
   function hairPath(length: Length): string {
+    // A clipper cut is a thin cap close to the head; shaved has no hair to draw.
+    if (length === 'shaved') return '';
+    if (length === 'trimmed') return 'M5 14 Q5 4 14 4 Q23 4 23 14 Q23 8 14 7 Q5 8 5 14 Z';
     const y = 8 + ((SIDE_REACH[length] - 232) / (478 - 232)) * 20;
     return `M4 14 Q4 3 14 3 Q24 3 24 14 L24 ${y} L19 ${y} L19 14 L9 14 L9 ${y} L4 ${y} Z`;
   }
@@ -62,7 +65,7 @@
         on:click={() => chooseLength(target, length)}
       >
         <svg viewBox="0 0 28 32" aria-hidden="true">
-          <path d={hairPath(length)} class="hair" />
+          {#if length !== 'shaved'}<path d={hairPath(length)} class="hair" />{/if}
           <circle cx="14" cy="14" r="8" class="face" />
         </svg>
         <span>{LENGTH_LABELS[length]}</span>
@@ -121,13 +124,13 @@
 
   .lengths {
     display: grid;
-    grid-template-columns: repeat(6, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     gap: 6px;
   }
 
   .length {
-    min-height: 64px;
-    padding: 4px 0 2px;
+    min-height: 46px;
+    padding: 2px 0 2px;
     display: grid;
     justify-items: center;
     align-content: center;
@@ -150,8 +153,8 @@
   }
 
   svg {
-    width: 28px;
-    height: 32px;
+    width: 22px;
+    height: 25px;
   }
 
   .hair {
