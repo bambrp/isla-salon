@@ -67,6 +67,9 @@ export const ISLA: CharacterDef = {
   seed: 6,
 };
 
+/** How clean her hair is to begin with, and again whenever she comes back to the sink. */
+const CLEAN_START = 0.4;
+
 export function initialState(character: CharacterDef = ISLA): SalonState {
   return {
     character,
@@ -76,7 +79,7 @@ export function initialState(character: CharacterDef = ISLA): SalonState {
     cut: null,
     hair: {
       wetness: 0,
-      cleanliness: 0.4,
+      cleanliness: CLEAN_START,
       conditioned: 0,
       shine: false,
       foam: 0,
@@ -123,11 +126,19 @@ export const salon = writable<SalonState>(initialStore());
 
 export function setStage(stage: Stage): void {
   // Leaving the sink turns the tap off, so nothing keeps running unseen.
-  salon.update((s) => ({
-    ...s,
-    stage,
-    wash: stage === 'wash' || s.wash.pressure === 0 ? s.wash : { ...s.wash, pressure: 0 },
-  }));
+  salon.update((s) => {
+    const leaving = s.stage === 'wash' && stage !== 'wash';
+    return {
+      ...s,
+      stage,
+      wash: stage === 'wash' || s.wash.pressure === 0 ? s.wash : { ...s.wash, pressure: 0 },
+      // Leaving the sink clears the washing: she is dry again, with no lather, conditioner or silkiness, whenever she
+      // comes back. Only the shine stays (until water next wets her hair).
+      hair: leaving
+        ? { ...s.hair, wetness: 0, foam: 0, cream: 0, cleanliness: CLEAN_START, conditioned: 0 }
+        : s.hair,
+    };
+  });
 }
 
 export function rotateView(): void {

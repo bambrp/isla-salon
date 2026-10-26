@@ -145,3 +145,26 @@ describe('shine', () => {
     expect(get(salon).hair.shine).toBe(false);
   });
 });
+
+describe('leaving the sink', () => {
+  it('clears the washing but keeps the shine', async () => {
+    const { setShine, setStage, commitWash } = await import('./state');
+    commitWash({ wet: 1, foam: 0.5, cream: 0.4, clean: 1, conditioned: 0.9 });
+    setShine(true);
+    setStage('cut');
+    const h = get(salon).hair;
+    expect([h.wetness, h.foam, h.cream, h.conditioned]).toEqual([0, 0, 0, 0]);
+    expect(h.cleanliness).toBe(0.4);
+    expect(h.shine).toBe(true);
+    setStage('wash');
+    expect(get(salon).hair.wetness).toBe(0);
+  });
+  it('does not touch the washing when moving between other stages', async () => {
+    const { setStage } = await import('./state');
+    const { commitWash } = await import('./state');
+    setStage('cut');
+    commitWash({ wet: 0.7, foam: 0, cream: 0, clean: 0.9, conditioned: 0 });
+    setStage('style');
+    expect(get(salon).hair.wetness).toBe(0.7);
+  });
+});

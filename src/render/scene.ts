@@ -818,6 +818,7 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
     }
     if (next.stage !== 'cut') swipeReset();
     // Leaving the sink ends any rubbing and opens her eyes.
+    if (next.stage !== 'wash') load = { ...load, amount: 0 };
     if (next.stage !== 'wash' && (rub > 0 || eyeTimer > 0 || blobAge >= 0)) {
       rub = 0;
       rubMoved = 0;
@@ -841,6 +842,7 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
     }
 
     // The washing levels come from the store whenever something other than this scene changed them.
+    const leftAsWashed = levels; // the hair as it was before the store changed it (leaving the sink clears the washing)
     const stored = washLevels(next);
     if (!sameLevels(stored, lastCommitted)) {
       levels = stored;
@@ -856,7 +858,7 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
     }
     if (wasApplying && !running) {
       // The rinse is over: conditioned hair that has been rinsed clean now shines, and keeps shining until wetted again.
-      if (conditionedSinceWet && isShiny(levels)) {
+      if (conditionedSinceWet && isShiny(leftAsWashed)) {
         shine = true;
         setShine(true);
       }
