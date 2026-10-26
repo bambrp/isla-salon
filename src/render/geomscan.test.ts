@@ -57,3 +57,12 @@ describe('hair outlines sent to the graphics card', () => {
     }
   });
 });
+
+describe('eyebrow colour', () => {
+  it('is half as bright as her natural hair colour, and ignores any dye', async () => {
+    const { browColour } = await import('./character');
+    expect(browColour('#ffd84a')).toBe(0x806c25);
+    expect(browColour('#ffffff')).toBe(0x808080);
+    expect(browColour('#000000')).toBe(0);
+  });
+});

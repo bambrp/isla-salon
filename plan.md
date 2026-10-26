@@ -16,7 +16,7 @@ Based on `intent.md`. Decisions below were confirmed by the owner.
 | 5 Styling | Done (you asked to move on) |
 | 6 Photo export and polish | Done (you asked to move on) |
 | 7 Release | Built and release-ready; host chosen: Cloudflare Pages (you have an account); going live needs you to connect it (see below) |
-| Version 1 fixes | **F1 to F12 done; F13 planned, not started** (checklist F1 to F13 in section 6, after the enhancements) |
+| Version 1 fixes | **F1 to F13 all done** (checklist F1 to F13 in section 6, after the enhancements) |
 | Stray-lines bug | **Fixed, needs the owner to confirm on a phone.** Cause: two kinds of drawing gave Pixi two identical neighbouring points, which it turns into broken (NaN) vertices; desktop graphics chips skip them but phone chips draw them as lines to the top-left corner. The two sources were the temperature dial's coloured arcs and the citrus label's half circle (both `moveTo` plus `arc`), and the outline of every hair lock when its tip or root points coincided. Now drawn as plain point lists, and hair outlines pass through `withoutRepeats`. A test builds the backdrop's triangles and checks every vertex is a number; a browser sweep of the live scene over every length, curl, style, colour mode, view and wash setting found none. Not reproducible here (the test browser skips the bad points), so the check was on the geometry itself. |
 | Version 1 enhancements | **Rebuild finished: 1 to 8 are back in the source; 9 (real spiky style) is withdrawn, because the spiky style is being removed (fix F9)** (checklist in section 6, after Stage 7) |
 
@@ -253,7 +253,7 @@ A checklist of changes requested after the first build. Tick each box when it is
 **Styling stage**
 - [x] 9. The spiky style is wrong. Spiky hair sticks up and out from the head, according to the length of the hair. Done: see the Spiky note under Stage 5. The old crown tufts and flicked ends are gone.
 
-### Version 1 fixes (F1 to F12 done; F13 planned, not started)
+### Version 1 fixes (F1 to F13 all done)
 
 A second checklist, from testing the enhancements. Nothing here is implemented yet, and none will be until the owner asks. Tick each box when it is built and checked.
 
@@ -280,7 +280,7 @@ A second checklist, from testing the enhancements. Nothing here is implemented y
 
 **Whole game**
 - [x] F6. The little white dots at the ends of the hair strands are not shown. Done: the cut-region markers and the layer that drew them are gone from every stage and from the camera photo; the chosen region is still shown by the panel and by tapping the head. The Stage 3 note is updated.
-- [ ] F13. The eyebrows are not coloured with the hair dye. Instead they are a 50% darker shade of Isla's original hair colour, whatever colour the hair is now. (Today each brow is a darker shade of the dyed root colour on its own side.)
+- [x] F13. The eyebrows are not coloured with the hair dye. Instead they are a 50% darker shade of Isla's original hair colour, whatever colour the hair is now. (Today each brow is a darker shade of the dyed root colour on its own side.) Done: both brows are half as bright (a 50 per cent darker shade) as her natural hair colour from the character definition, so they keep their golden brown whatever the hair is dyed and for split and ombre colours; the angry and cold expressions are unchanged. Checked in a browser with purple hair, and by a unit test of the colour.
 
 ### Later versions (not in scope for v1, but architecture-ready)
 - Additional characters via `CharacterDef`
@@ -302,7 +302,7 @@ A second checklist, from testing the enhancements. Nothing here is implemented y
   - Fix F8: how light is "much lighter", and what does squeaky sound like? (Assumed: the lightest conditioned colour moves most of the way to white, still tinted by her hair colour so split and ombre stay readable; one short rubber-squeak per swipe stroke, in either direction. The sound can't be heard in the build environment, so the owner should check it.)
   - Fix F10 and F11 (settled): shine lasts until water is next applied to her hair, however many stages she passes through, including back at the sink; leaving the stage clears everything else.
   - Fix F9 (settled): the spiky product is gone with nothing to carry over.
-  - Fix F13: what is the "original hair colour", and how dark is 50% darker? (Assumed: her natural hair colour from the start of the game, which never changes however the hair is dyed or split; both brows use the one colour, so split and ombre colours leave the brows alone; "50% darker" is half as bright, the same brown-gold at half the lightness, replacing the current slightly darker shade of the dye. A different character would use her own natural colour.)
+  - Fix F13 (settled as assumed): what is the "original hair colour", and how dark is 50% darker? (Assumed: her natural hair colour from the start of the game, which never changes however the hair is dyed or split; both brows use the one colour, so split and ombre colours leave the brows alone; "50% darker" is half as bright, the same brown-gold at half the lightness, replacing the current slightly darker shade of the dye. A different character would use her own natural colour.)
   - Fix F12: how do the new lengths behave elsewhere? (Assumed: trimmed hair still takes colour, lather and wetness as a thin cap; shaved shows nothing to colour, lather, wet or style, and the colour and style panels stay usable but show no change. Scissors clippings fall for trimmed and shaved cuts like the others. The camera photo shows a bald head in skin tone. Trimmed's 3 mm is shown as the shortest visible hair, not to scale.)
   - Fix F2: should coming back to the sink also clear any lather or conditioner, or only the wetness and drips? (Assumed: only wetness and drips; the lather and conditioner levels stay, so a lightened head of hair stays lightened until rinsed.)
   - Fix F3: how long does the lightening last, and how light is "lightest"? (Assumed: it stays until water rinses it off, as in F4, and the lightest is a clearly lighter tint of her current hair colour that still works with split and ombre colours. It replaces the cream and bloop effects; the squirt blob stays.)

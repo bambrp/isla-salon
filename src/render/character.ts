@@ -10,7 +10,7 @@ import {
   surface,
   torsoScale,
 } from './geometry';
-import type { HairPaint } from './colour';
+import { hexToInt, type HairPaint } from './colour';
 import { CALM, tintedSkin, type Mood } from './complexion';
 import { drawLocks, sheenRuns, splitLocks, type Lock, type SheenPoint } from './hair';
 import { INK, OUTLINE, PALETTE, SHADOW_FACTOR, celEllipse, shade } from './style';
@@ -150,6 +150,11 @@ function drawEye(g: Graphics, az: number, phi: number, iris: number, blink: numb
   g.ellipse(sx + gaze - 3 * kx, cy - 5 * open, 3 * kx, 3 * open).fill(0xffffff);
 }
 
+/** The eyebrow colour: half as bright as her natural hair colour, whatever the hair is dyed now. */
+export function browColour(naturalHair: string): number {
+  return shade(hexToInt(naturalHair), 0.5);
+}
+
 function drawBrow(g: Graphics, side: number, phi: number, colour: number, annoyed: number): void {
   const pts: Array<Pt & { visible: boolean }> = [];
   const steps = 8;
@@ -244,13 +249,13 @@ function drawNose(g: Graphics, skin: number, phi: number): void {
   }
 }
 
-function drawFace(g: Graphics, state: SalonState, skin: number, phi: number, paint: HairPaint, blink: number, mood: Mood): void {
+function drawFace(g: Graphics, state: SalonState, skin: number, phi: number, blink: number, mood: Mood): void {
   const { eyes } = state.character;
   drawCheeks(g, phi, mood.tone);
   for (const side of [-1, 1] as const) {
     drawEye(g, side * 23 * DEG, phi, eyes, blink);
-    // Each brow is a darker shade of the root colour on its own side of the head.
-    drawBrow(g, side, phi, shade(paint.root(side), 0.6), mood.annoyed);
+    // The brows keep to her natural hair colour, darkened, and never take the dye.
+    drawBrow(g, side, phi, browColour(state.character.hair), mood.annoyed);
   }
   drawNose(g, skin, phi);
   drawTeeth(g, phi, mood.annoyed, mood.clench);
@@ -314,7 +319,7 @@ export function drawCharacter(
   drawEars(g, skin, phi, false);
   drawHead(g, skin, phi);
   drawEars(g, skin, phi, true);
-  drawFace(g, state, skin, phi, paint, blink, mood);
+  drawFace(g, state, skin, phi, blink, mood);
 
   drawLocks(g, front, bandsOf);
 
