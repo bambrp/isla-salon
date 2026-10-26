@@ -165,13 +165,51 @@ function drawBrow(g: Graphics, side: number, phi: number, colour: number, annoye
   strokeRuns(g, pts, { width: 4, color: colour });
 }
 
-function drawMouth(g: Graphics, phi: number, annoyed: number): void {
+/** How the mouth line sits at t (-1 to 1 across the mouth): a smile, turned over by annoyance, flattened by a clench. */
+function mouthY(t: number, annoyed: number, clench: number): number {
+  return 56 - 10 * t * t * (1 - 2 * annoyed) * (1 - 0.85 * clench) + 3 * annoyed;
+}
+
+/**
+ * Clenched teeth for the cold. The mouth opens up (the smile flattens into a wide grimace and the lower lip drops)
+ * to show a row of white teeth, with a line down each gap and one across the bite. Solid from the first moment: it
+ * is the opening, not a fade, that shows it coming on. It only dims as she turns away from the viewer.
+ */
+function drawTeeth(g: Graphics, phi: number, annoyed: number, clench: number): void {
+  const centre = surface(0, 56, 0.5);
+  const vis = facing(centre, phi);
+  if (vis < 0.25 || clench <= 0.01) return;
+  const alpha = Math.min(1, (vis - 0.25) / 0.3);
+  const half = 20 * DEG;
+  const open = 14 * clench;
+  const at = (f: number, drop: number): [number, number] => {
+    const t = f; // -1 to 1 across the mouth
+    const s = surface(t * half, mouthY(t, annoyed, clench) + drop * open * (1 - 0.35 * t * t), 0.5);
+    const p = project(s.x, s.y, s.z, phi);
+    return [p.sx, p.sy];
+  };
+  const steps = 8;
+  const outline: number[] = [];
+  for (let k = 0; k <= steps; k++) outline.push(...at((2 * k) / steps - 1, 0));
+  for (let k = steps; k >= 0; k--) outline.push(...at((2 * k) / steps - 1, 1));
+  g.poly(outline).fill({ color: 0xffffff, alpha }).stroke({ width: 3, color: INK, alpha, join: 'round' });
+  const across: number[] = [];
+  for (let k = 0; k <= steps; k++) across.push(...at((2 * k) / steps - 1, 0.5));
+  g.poly(across, false).stroke({ width: 1.6, color: INK, alpha });
+  for (const f of [-0.5, 0, 0.5]) {
+    const [x0, y0] = at(f, 0);
+    const [x1, y1] = at(f, 1);
+    g.moveTo(x0, y0).lineTo(x1, y1).stroke({ width: 1.6, color: INK, alpha });
+  }
+}
+
+function drawMouth(g: Graphics, phi: number, annoyed: number, clench: number): void {
   const pts: Array<Pt & { visible: boolean }> = [];
   const steps = 10;
   for (let k = 0; k <= steps; k++) {
     const t = (k / steps) * 2 - 1;
     // Annoyed turns the smile over into a frown.
-    const s = surface(t * 18 * DEG, 56 - 10 * t * t * (1 - 2 * annoyed) + 3 * annoyed, 0.5);
+    const s = surface(t * (18 + 2 * clench) * DEG, mouthY(t, annoyed, clench), 0.5);
     const { sx, sy } = project(s.x, s.y, s.z, phi);
     pts.push({ x: sx, y: sy, visible: facing(s, phi) > 0.1 });
   }
@@ -215,7 +253,8 @@ function drawFace(g: Graphics, state: SalonState, skin: number, phi: number, pai
     drawBrow(g, side, phi, shade(paint.root(side), 0.6), mood.annoyed);
   }
   drawNose(g, skin, phi);
-  drawMouth(g, phi, mood.annoyed);
+  drawTeeth(g, phi, mood.annoyed, mood.clench);
+  drawMouth(g, phi, mood.annoyed, mood.clench);
 }
 
 // ---------------------------------------------------------------------------------------------------

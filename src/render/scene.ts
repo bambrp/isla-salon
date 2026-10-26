@@ -3,7 +3,7 @@ import { Application, Container, Graphics, RenderTexture } from 'pixi.js';
 import gsap from 'gsap';
 import { PHOTO_HEIGHT, PHOTO_WIDTH } from '../photo';
 import { STAGES, VIEWS, commitWash, cutSwipe, hairPosition, sceneFor, washLevels, waterRunning, type Region, type SalonState, type Stage } from '../state';
-import { playBoing, playPat, playSnip, playSparkle, playSpray, playSquirt, updateWashSound, type WashSound } from '../audio';
+import { playBoing, playPat, playSnip, playSparkle, playSqueak, playSpray, playSquirt, updateWashSound, type WashSound } from '../audio';
 import { REGION_AZIMUTH, SWIPES_TO_CUT, movingRegions, positionsOf, regionOfAzimuth, toolFor, type CutPlan } from '../cut';
 import { drawBackdrop } from './backdrop';
 import { drawCharacter } from './character';
@@ -57,7 +57,7 @@ const PAN_SECONDS = 0.45;
 /** The squirt blob sinks into her hair over this long. */
 const BLOB_SECONDS = 1;
 /** How far towards white the lightest hair goes, after the full eight swipes of conditioner. */
-const LIGHTEST = 0.55;
+const LIGHTEST = 0.88;
 /** A swipe is a pass of about a finger's width (design units) in one direction; smaller movements than the jitter are ignored. */
 export const SWIPE_LENGTH = 36;
 const SWIPE_JITTER = 0.8;
@@ -223,6 +223,7 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
     if (r.used <= 0) return;
     levels = r.levels;
     load = { ...load, amount: Math.max(0, load.amount - r.used) };
+    playSqueak();
     syncTicker();
     draw();
   }

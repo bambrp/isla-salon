@@ -16,9 +16,9 @@ Based on `intent.md`. Decisions below were confirmed by the owner.
 | 5 Styling | Done (you asked to move on) |
 | 6 Photo export and polish | Done (you asked to move on) |
 | 7 Release | Built and release-ready; host chosen: Cloudflare Pages (you have an account); going live needs you to connect it (see below) |
-| Version 1 fixes | **F1, F3, F4, F5 and F6 done; F2 planned, not started** (checklist F1 to F6 in section 6, after the enhancements) |
+| Version 1 fixes | **F1, F3 to F8 done; F2 (widened), F9 to F12 planned, not started** (checklist F1 to F12 in section 6, after the enhancements) |
 | Stray-lines bug | **Fixed, needs the owner to confirm on a phone.** Cause: two kinds of drawing gave Pixi two identical neighbouring points, which it turns into broken (NaN) vertices; desktop graphics chips skip them but phone chips draw them as lines to the top-left corner. The two sources were the temperature dial's coloured arcs and the citrus label's half circle (both `moveTo` plus `arc`), and the outline of every hair lock when its tip or root points coincided. Now drawn as plain point lists, and hair outlines pass through `withoutRepeats`. A test builds the backdrop's triangles and checks every vertex is a number; a browser sweep of the live scene over every length, curl, style, colour mode, view and wash setting found none. Not reproducible here (the test browser skips the bad points), so the check was on the geometry itself. |
-| Version 1 enhancements | **Being rebuilt on the Stage 7 source: 8 of 9 rebuilt** (the version you deployed has all nine) (checklist in section 6, after Stage 7) |
+| Version 1 enhancements | **Rebuild finished: 1 to 8 are back in the source; 9 (real spiky style) is withdrawn, because the spiky style is being removed (fix F9)** (checklist in section 6, after Stage 7) |
 
 Stage 2 notes (decisions made while building):
 - Colouring has three modes: one colour, left and right (as you see Isla from the front: Left is the screen-left), and ombre (roots to tips).
@@ -230,7 +230,7 @@ The renderer is a pure function of `SalonState` plus transient animation state (
 
 ### Rebuilding the enhancements
 
-The source with enhancements 1 to 9 was lost, so they are being redone, one at a time, from the Stage 7 source (the deployed build has all nine). Rebuilt so far: **1, 2, 3, 4, 5, 6, 7, 8**. The tick boxes and "Done:" notes below describe the deployed version; the list here says which are back in the source. The fixes below are not started.
+The source with enhancements 1 to 9 was lost, so they are being redone, one at a time, from the Stage 7 source (the deployed build has all nine). Rebuilt so far: **1, 2, 3, 4, 5, 6, 7, 8**. Enhancement 9 (real spiky style) will not be rebuilt: the owner has asked for the spiky style to be removed (fix F9). The tick boxes and "Done:" notes below describe the deployed version; the list here says which are back in the source. The fixes below are not started.
 
 ### Version 1 enhancements (all built in the deployed version)
 
@@ -253,17 +253,29 @@ A checklist of changes requested after the first build. Tick each box when it is
 **Styling stage**
 - [x] 9. The spiky style is wrong. Spiky hair sticks up and out from the head, according to the length of the hair. Done: see the Spiky note under Stage 5. The old crown tufts and flicked ends are gone.
 
-### Version 1 fixes (F1, F3, F4, F5 and F6 done; F2 planned, not started)
+### Version 1 fixes (F1, F3 to F8 done; F2 and F9 to F12 planned, not started)
 
 A second checklist, from testing the enhancements. Nothing here is implemented yet, and none will be until the owner asks. Tick each box when it is built and checked.
 
 **Washing stage**
 - [x] F1. When the water is off, swiping across her hair does not move the shower head. Done: the shower head only follows a swiping finger while the tap is on; with the tap off it stays at her crown however much you swipe (rubbing product in still works). Checked in a browser by comparing the sprayer's part of the picture during a swipe with the tap off (no change) and on (it moves).
-- [ ] F2. Coming back to the washing stage, her hair shows as dry even if it was wet when she left, and there is no drip animation.
+- [ ] F2. Coming back to the washing stage, her hair shows as dry even if it was wet when she left, and there is no drip animation. **Widened by F11:** all washing status is cancelled when she leaves the stage, not only the wetness (see F11).
 - [x] F3. Conditioner: after it is squirted on, swiping no longer shows the cream effect. Instead her hair turns a lighter and lighter shade, reaching its lightest after 8 swipes. Done: the cream blobs and the bloop sound are gone. Each swipe across her hair at the sink with conditioner squirted on lightens it a step (an eighth of the way to a pale tint of its own colour, so split and ombre colours stay split and ombre), easing smoothly, and uses an eighth of the squirt: one squirt lasts exactly the 8 swipes, then more swipes do nothing until you squirt again. The hair also gets silkier with each swipe. The lightness stays until water rinses it off (the rinse rate is unchanged until fix F4), and shows at the sink only, like wet hair. Swiping while the water runs rinses instead. Checked in a browser: eight steady steps lighter, nothing on the 9th and 10th swipe, and the water bringing the level back to zero while the silkiness stays.
 - [x] F4. Washing removes the lather or the conditioner effect faster at higher water pressure. Done: the rinse speed rises evenly from 1 times at the lowest setting above off to 3 times at full pressure (the strongest water is exactly three times faster; the gentlest still rinses steadily). Lather clears in about 5 seconds at the gentlest and 1.7 at full pressure; conditioner lightness in about 7 and 2.4. Checked in a browser by timing both from full cover.
 
+**Washing stage, second batch (added after F6; planned only)**
+- [x] F7. When the water is set to its coldest, Isla clenches her teeth to match how cold it feels: the mouth shows a row of clenched teeth, easing in and out with the same fade as the other cold and hot reactions. Done: a new `clench` value in her mood is 1 at the coldest setting and gone by about an eighth of the way up the temperature control (merely cool water shows no teeth). It rises in a second and fades in three like the colour. The teeth do not fade in: the mouth opens up (the smile flattens into a wide grimace and the lower lip drops) to show a solid row of white teeth, with a line down each gap and one across the bite, and closes again as the value falls (owner's correction). They follow the head round and dim only as she turns away. Checked in a browser at the coldest setting with the water running, and by unit tests.
+- [x] F8. The conditioner effect (F3) gets much lighter, and each conditioner swipe plays a squeaky sound, like clean hair being rubbed. Done: after the full eight swipes the hair is 88 per cent of the way to white (it was 55), still tinted by its own colour; each swipe that lightens the hair plays a short rising rubber squeak (`playSqueak`, a little different in pitch each time). Checked in a browser after ten swipes. The squeak can't be heard here, so the owner should listen to it.
+- [ ] F10. The shiny hair status that conditioner gives stays until her hair is made wet again (it is not lost by leaving the stage or by styling).
+- [ ] F11. All washing status except shine (wet, drips, lather and conditioner lightness) is cancelled globally when she leaves the washing stage, and when she returns she always begins with dry hair. Shine is the one exception: it is kept when she leaves and when she returns, and is cancelled only by water being applied to her hair (settled by the owner). This widens F2, which only covered the wetness and drips.
+
+**Styling stage**
+- [ ] F9. Remove the spiky style. It isn't working, so the Spiky product button and all of its drawing go, leaving None and Flat. This replaces enhancement 9, which is withdrawn.
+
 **Cutting stage**
+- [ ] F12. Add two shorter lengths below Crop: **Trimmed** (a grade 1 clipper cut, hair 3 mm long, shown as a close-cropped cap of short stubble in her hair colour) and **Shaved** (no hair at all, so her head shows her skin colour). Both work with the eight-swipe cut, in either direction, like the other lengths.
+
+**Cutting stage, done**
 - [x] F5. When cutting to a longer length from a shorter one, the swipes show a magic wand instead of the scissors, with a sparkly sound instead of the snip. (The owner chose a magic wand in place of the original glue pot.) Done: a swipe where every changing part is getting longer shows a star-tipped wand that sweeps in beside the most visible growing part, waves twice and sends up a fountain of little stars, with a rising run of bell notes (`playSparkle`) and no snip. As soon as any part is getting shorter the scissors, clippings and snip play instead (never both). The choice is the tested rule `toolFor` in cut.ts. With reduced motion only the sound plays. The old plain chime is gone. Checked in a browser: wand on a lengthening swipe, scissors on a shortening one. The sparkle sound can't be heard here, so the owner should listen to it.
 
 **Whole game**
@@ -285,6 +297,11 @@ A second checklist, from testing the enhancements. Nothing here is implemented y
 
 ## 8. Remaining open questions
 - Fixes, to settle when they are built (none blocks the checklist):
+  - Fix F7: at what setting do the teeth show? (Assumed: only at the very coldest end of the temperature control, fading in and out, not at merely cool water.)
+  - Fix F8: how light is "much lighter", and what does squeaky sound like? (Assumed: the lightest conditioned colour moves most of the way to white, still tinted by her hair colour so split and ombre stay readable; one short rubber-squeak per swipe stroke, in either direction. The sound can't be heard in the build environment, so the owner should check it.)
+  - Fix F10 and F11 (settled): shine lasts until water is next applied to her hair, however many stages she passes through, including back at the sink; leaving the stage clears everything else.
+  - Fix F9: what happens to a game already in the spiky style? (Assumed: nothing to carry over; the product simply becomes None.)
+  - Fix F12: how do the new lengths behave elsewhere? (Assumed: trimmed hair still takes colour, lather and wetness as a thin cap; shaved shows nothing to colour, lather, wet or style, and the colour and style panels stay usable but show no change. Scissors clippings fall for trimmed and shaved cuts like the others. The camera photo shows a bald head in skin tone. Trimmed's 3 mm is shown as the shortest visible hair, not to scale.)
   - Fix F2: should coming back to the sink also clear any lather or conditioner, or only the wetness and drips? (Assumed: only wetness and drips; the lather and conditioner levels stay, so a lightened head of hair stays lightened until rinsed.)
   - Fix F3: how long does the lightening last, and how light is "lightest"? (Assumed: it stays until water rinses it off, as in F4, and the lightest is a clearly lighter tint of her current hair colour that still works with split and ombre colours. It replaces the cream and bloop effects; the squirt blob stays.)
   - Fix F4: how much faster? (Assumed: roughly three times faster at full pressure than at the gentlest, and still slow but steady at the gentlest.)

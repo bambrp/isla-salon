@@ -39,31 +39,31 @@ describe('the face the water works towards', () => {
 
 describe('the fade', () => {
   it('comes up in about a second while the water runs', () => {
-    const m = run(CALM, MOOD_RISE_SECONDS, { tone: 1, annoyed: 1 });
+    const m = run(CALM, MOOD_RISE_SECONDS, { tone: 1, annoyed: 1, clench: 0 });
     expect(m.tone).toBeCloseTo(1, 1);
-    expect(run(CALM, 0.5, { tone: 1, annoyed: 0 }).tone).toBeCloseTo(0.5, 1);
+    expect(run(CALM, 0.5, { tone: 1, annoyed: 0, clench: 0 }).tone).toBeCloseTo(0.5, 1);
   });
 
   it('fades back over three seconds once the water stops, not sooner', () => {
-    const full: Mood = { tone: 1, annoyed: 1 };
+    const full: Mood = { tone: 1, annoyed: 1, clench: 0 };
     expect(run(full, 1.5, CALM).tone).toBeCloseTo(0.5, 1);
     expect(isCalm(run(full, MOOD_FADE_SECONDS + 0.05, CALM))).toBe(true);
     expect(isCalm(run(full, MOOD_FADE_SECONDS - 0.3, CALM))).toBe(false);
   });
 
   it('fades slowly too when the water is merely made gentler', () => {
-    const m = run({ tone: 1, annoyed: 1 }, 1, { tone: 0.4, annoyed: 0 });
+    const m = run({ tone: 1, annoyed: 1, clench: 0 }, 1, { tone: 0.4, annoyed: 0, clench: 0 });
     expect(m.tone).toBeGreaterThan(0.6);
   });
 
   it('goes back through her own colour when it swings from pink to blue', () => {
-    const m = run({ tone: 0.6, annoyed: 0 }, 0.5, { tone: -1, annoyed: 0 });
+    const m = run({ tone: 0.6, annoyed: 0, clench: 0 }, 0.5, { tone: -1, annoyed: 0, clench: 0 });
     expect(m.tone).toBeGreaterThan(0);
     expect(m.tone).toBeLessThan(0.6);
   });
 
   it('never overshoots', () => {
-    for (const m of [run(CALM, 5, { tone: 0.7, annoyed: 0.2 }), run({ tone: 1, annoyed: 1 }, 7, CALM)]) {
+    for (const m of [run(CALM, 5, { tone: 0.7, annoyed: 0.2, clench: 0 }), run({ tone: 1, annoyed: 1, clench: 0 }, 7, CALM)]) {
       expect(Math.abs(m.tone)).toBeLessThanOrEqual(1);
       expect(m.annoyed).toBeGreaterThanOrEqual(0);
     }
@@ -92,5 +92,26 @@ describe('the skin colour', () => {
   it('changes smoothly with the tone', () => {
     expect(tintedSkin(skin, 0.5)).not.toBe(tintedSkin(skin, 1));
     expect(tintedSkin(skin, 0.5)).not.toBe(skin);
+  });
+});
+
+describe('clenched teeth against the cold', () => {
+  it('clench only at the very coldest setting, not for merely cool water', () => {
+    expect(moodTarget(true, 0).clench).toBe(1);
+    expect(moodTarget(true, 0.06).clench).toBeGreaterThan(0);
+    expect(moodTarget(true, 0.06).clench).toBeLessThan(1);
+    expect(moodTarget(true, 0.2).clench).toBe(0);
+    expect(moodTarget(true, 0.8).clench).toBe(0);
+  });
+  it('no clench with the water off, and it comes up in a second and fades in three', () => {
+    expect(moodTarget(false, 0).clench).toBe(0);
+    const cold = moodTarget(true, 0);
+    let m: Mood = CALM;
+    for (let i = 0; i < 10; i++) m = stepMood(m, 0.1, cold);
+    expect(m.clench).toBeCloseTo(1, 1);
+    for (let i = 0; i < 15; i++) m = stepMood(m, 0.1, CALM);
+    expect(m.clench).toBeCloseTo(0.5, 1);
+    for (let i = 0; i < 20; i++) m = stepMood(m, 0.1, CALM);
+    expect(isCalm(m)).toBe(true);
   });
 });

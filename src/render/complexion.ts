@@ -10,9 +10,11 @@ export interface Mood {
   tone: number;
   /** 0 to 1: how annoyed she looks (brows slanted in, a frown). */
   annoyed: number;
+  /** 0 to 1: how hard she clenches her teeth against the cold (only at the very coldest setting). */
+  clench: number;
 }
 
-export const CALM: Mood = { tone: 0, annoyed: 0 };
+export const CALM: Mood = { tone: 0, annoyed: 0, clench: 0 };
 
 /** Seconds for the colour to come up while the water runs, and to fade back to normal after. */
 export const MOOD_RISE_SECONDS = 1;
@@ -22,8 +24,8 @@ export const MOOD_FADE_SECONDS = 3;
 export function moodTarget(waterRunning: boolean, temperature: number): Mood {
   if (!waterRunning) return CALM;
   const t = clamp(temperature, 0, 1);
-  if (t < 0.5) return { tone: -(1 - smoothstep(0, 0.4, t)), annoyed: 0 };
-  return { tone: smoothstep(0.5, 0.95, t), annoyed: smoothstep(0.88, 1, t) };
+  if (t < 0.5) return { tone: -(1 - smoothstep(0, 0.4, t)), annoyed: 0, clench: 1 - smoothstep(0, 0.12, t) };
+  return { tone: smoothstep(0.5, 0.95, t), annoyed: smoothstep(0.88, 1, t), clench: 0 };
 }
 
 /** Move a value towards its target: quickly when it is growing in strength, slowly when it is fading back. */
@@ -36,15 +38,15 @@ function approach(value: number, target: number, dt: number): number {
 }
 
 export function stepMood(m: Mood, dt: number, target: Mood): Mood {
-  return { tone: approach(m.tone, target.tone, dt), annoyed: approach(m.annoyed, target.annoyed, dt) };
+  return { tone: approach(m.tone, target.tone, dt), annoyed: approach(m.annoyed, target.annoyed, dt), clench: approach(m.clench, target.clench, dt) };
 }
 
 export function sameMood(a: Mood, b: Mood): boolean {
-  return Math.abs(a.tone - b.tone) < 1e-6 && Math.abs(a.annoyed - b.annoyed) < 1e-6;
+  return Math.abs(a.tone - b.tone) < 1e-6 && Math.abs(a.annoyed - b.annoyed) < 1e-6 && Math.abs(a.clench - b.clench) < 1e-6;
 }
 
 export function isCalm(m: Mood): boolean {
-  return Math.abs(m.tone) < 1e-6 && Math.abs(m.annoyed) < 1e-6;
+  return Math.abs(m.tone) < 1e-6 && Math.abs(m.annoyed) < 1e-6 && Math.abs(m.clench) < 1e-6;
 }
 
 const PINK = 0xff7f9a;

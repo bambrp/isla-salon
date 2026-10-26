@@ -332,3 +332,34 @@ export function playShutter(): void {
     src.start(t + offset, 0, 0.06);
   }
 }
+
+/** A squeak of clean, conditioned hair being rubbed: a short rubbery chirp that rises, with a little wobble. */
+export function playSqueak(): void {
+  const c = context();
+  if (!c) return;
+  const t = c.currentTime;
+  const base = 1500 + Math.random() * 500;
+  const osc = c.createOscillator();
+  osc.type = 'triangle';
+  osc.frequency.setValueAtTime(base, t);
+  osc.frequency.exponentialRampToValueAtTime(base * 1.7, t + 0.09);
+  osc.frequency.exponentialRampToValueAtTime(base * 1.35, t + 0.17);
+  const wobble = c.createOscillator();
+  wobble.frequency.value = 38;
+  const depth = c.createGain();
+  depth.gain.value = 60;
+  wobble.connect(depth).connect(osc.frequency);
+  const filter = c.createBiquadFilter();
+  filter.type = 'bandpass';
+  filter.frequency.value = 2400;
+  filter.Q.value = 3;
+  const gain = c.createGain();
+  gain.gain.setValueAtTime(0.0001, t);
+  gain.gain.exponentialRampToValueAtTime(0.12, t + 0.02);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.19);
+  osc.connect(filter).connect(gain).connect(c.destination);
+  osc.start(t);
+  wobble.start(t);
+  osc.stop(t + 0.2);
+  wobble.stop(t + 0.2);
+}
