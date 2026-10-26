@@ -18,11 +18,10 @@ function allCombinations(): Lengths[] {
 // Every look the panel can ask for, plus a few in between, since the scene builds hair part-way through a change.
 const LOOKS: Look[] = [
   lookOf(3, 'none'),
-  lookOf(0, 'spiky'),
   lookOf(0, 'flat'),
-  lookOf(2, 'spiky'),
+  lookOf(2, 'flat'),
   lookOf(3, 'flat'),
-  { curl: 1.4, spiky: 0.5, flat: 0.3 },
+  { curl: 1.4, flat: 0.3 },
 ];
 
 describe('looks', () => {
@@ -31,15 +30,14 @@ describe('looks', () => {
   });
 
   it('describes curl and product as numbers', () => {
-    expect(lookOf(2, 'none')).toEqual({ curl: 2, spiky: 0, flat: 0 });
-    expect(lookOf(0, 'spiky')).toEqual({ curl: 0, spiky: 1, flat: 0 });
-    expect(lookOf(0, 'flat')).toEqual({ curl: 0, spiky: 0, flat: 1 });
+    expect(lookOf(2, 'none')).toEqual({ curl: 2, flat: 0 });
+    expect(lookOf(0, 'flat')).toEqual({ curl: 0, flat: 1 });
     expect(sameLook(lookOf(1, 'flat'), lookOf(1, 'flat'))).toBe(true);
     expect(sameLook(lookOf(1, 'flat'), lookOf(1, 'none'))).toBe(false);
   });
 
   it('is deterministic for a look', () => {
-    expect(buildLocks(uniform('shoulders'), 6, lookOf(3, 'spiky'))).toEqual(buildLocks(uniform('shoulders'), 6, lookOf(3, 'spiky')));
+    expect(buildLocks(uniform('shoulders'), 6, lookOf(3, 'flat'))).toEqual(buildLocks(uniform('shoulders'), 6, lookOf(3, 'flat')));
   });
 
   it('keeps every sample finite, ordered and inside the design box, for all 1296 cuts and every look', () => {
@@ -113,30 +111,12 @@ describe('looks', () => {
     expect(curlOnly(lookOf(3, 'flat'))).toBeLessThan(0.3 * curlOnly(lookOf(3, 'none')));
   });
 
-  it('spiky hair stands taller at the crown, in tufts of different heights', () => {
-    const crown = (look: Look) => buildLocks(uniform('short2'), 6, look).map((k) => k.samples[0].y);
-    const plain = crown(NO_LOOK);
-    const spiky = crown(lookOf(0, 'spiky'));
-    expect(Math.min(...spiky)).toBeLessThan(Math.min(...plain) - 8);
-    expect(new Set(spiky.map((y) => Math.round(y))).size).toBeGreaterThan(2);
-  });
-
-  it('spiky is weaker on long hair, which is too heavy to stand up', () => {
-    const lift = (l: Length) => {
-      const plain = Math.min(...buildLocks(uniform(l), 6, NO_LOOK).map((k) => k.samples[0].y));
-      const spiky = Math.min(...buildLocks(uniform(l), 6, lookOf(0, 'spiky')).map((k) => k.samples[0].y));
-      return plain - spiky;
-    };
-    expect(lift('short2')).toBeGreaterThan(lift('back'));
-    expect(lift('back')).toBeGreaterThan(0);
-  });
-
   it('changing smoothly between looks never jumps', () => {
     // The scene tweens the numbers, so hair built a hair's breadth apart must be a hair's breadth apart.
     const region: Region = 'back';
     expect(region).toBe('back');
-    const a = buildLocks(uniform('bob'), 6, { curl: 1.5, spiky: 0.3, flat: 0 });
-    const b = buildLocks(uniform('bob'), 6, { curl: 1.5, spiky: 0.31, flat: 0 });
+    const a = buildLocks(uniform('bob'), 6, { curl: 1.5, flat: 0.3 });
+    const b = buildLocks(uniform('bob'), 6, { curl: 1.5, flat: 0.31 });
     let worst = 0;
     for (let i = 0; i < a.length; i++)
       for (let k = 0; k < a[i].samples.length; k++) worst = Math.max(worst, Math.abs(a[i].samples[k].y - b[i].samples[k].y), Math.abs(a[i].samples[k].a - b[i].samples[k].a) * 100);

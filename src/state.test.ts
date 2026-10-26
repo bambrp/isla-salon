@@ -97,9 +97,6 @@ describe('styling actions', () => {
 
   it('sets the curl and the product independently', () => {
     setCurl(2);
-    setStyleProduct('spiky');
-    expect(get(salon).hair.curl).toBe(2);
-    expect(get(salon).hair.product).toBe('spiky');
     setStyleProduct('flat');
     expect(get(salon).hair.curl).toBe(2);
     expect(get(salon).hair.product).toBe('flat');

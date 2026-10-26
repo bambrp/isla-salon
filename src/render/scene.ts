@@ -552,10 +552,10 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
       playBoing();
       if (!reduced) playSparks(starBurst());
     }
-    if (target.spiky !== prev.spiky || target.flat !== prev.flat) {
+    if (target.flat !== prev.flat) {
       playSpray();
       if (target.flat > prev.flat) playPat();
-      if (!reduced) playSparks(mistSpray(target.flat ? 0xbfe9ff : target.spiky ? 0xff9ed0 : 0xffffff));
+      if (!reduced) playSparks(mistSpray(target.flat ? 0xbfe9ff : 0xffffff));
     }
   }
 

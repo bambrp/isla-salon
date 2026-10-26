@@ -16,7 +16,7 @@ Based on `intent.md`. Decisions below were confirmed by the owner.
 | 5 Styling | Done (you asked to move on) |
 | 6 Photo export and polish | Done (you asked to move on) |
 | 7 Release | Built and release-ready; host chosen: Cloudflare Pages (you have an account); going live needs you to connect it (see below) |
-| Version 1 fixes | **F1, F3 to F8 done; F2 (widened), F9 to F12 planned, not started** (checklist F1 to F12 in section 6, after the enhancements) |
+| Version 1 fixes | **F1, F3 to F9 done; F2 (widened), F10 to F12 planned, not started** (checklist F1 to F12 in section 6, after the enhancements) |
 | Stray-lines bug | **Fixed, needs the owner to confirm on a phone.** Cause: two kinds of drawing gave Pixi two identical neighbouring points, which it turns into broken (NaN) vertices; desktop graphics chips skip them but phone chips draw them as lines to the top-left corner. The two sources were the temperature dial's coloured arcs and the citrus label's half circle (both `moveTo` plus `arc`), and the outline of every hair lock when its tip or root points coincided. Now drawn as plain point lists, and hair outlines pass through `withoutRepeats`. A test builds the backdrop's triangles and checks every vertex is a number; a browser sweep of the live scene over every length, curl, style, colour mode, view and wash setting found none. Not reproducible here (the test browser skips the bad points), so the check was on the geometry itself. |
 | Version 1 enhancements | **Rebuild finished: 1 to 8 are back in the source; 9 (real spiky style) is withdrawn, because the spiky style is being removed (fix F9)** (checklist in section 6, after Stage 7) |
 
@@ -59,9 +59,9 @@ Stage 6 notes (what is built):
 - Checked in a real browser: the photo (size, name, content, no interface in it, same size in landscape, other views), start over, remembered mute, blink, idle cost, reduced motion; plus the accessibility audit and every earlier check. Test pages can add ?still to freeze the idle animation.
 
 Stage 5 notes (what is built):
-- Styling has a Curl row (Straight, Waves, Curls, Tight curls, each with a little head showing the waviness) and a Product row (None, Spiky, Flat). One product at a time; curl and product combine freely. Every button is at least 44px.
+- Styling has a Curl row (Straight, Waves, Curls, Tight curls, each with a little head showing the waviness) and a Product row (None, Flat; the Spiky product was removed by fix F9). Curl and product combine freely. Every button is at least 44px.
 - Curl swings each lock side to side and in and out, so the outline ripples in every view; tighter curl waves faster and wider, fills the hair out a little, and lifts it so curled hair hangs slightly shorter than straight.
-- Spiky (reworked in version 1 enhancement 9) grows real spikes that stick up and out from the scalp, in three rings (crown, upper and mid head), 31 in all. Each spike's length follows the hair length at that part of the head, from short stubs on a crop to long spikes on long hair, and each part of the head follows its own length. The hair that lies on the head is cut back to a short cap round it while gel is on, and the spikes grow out of the head as the look eases in.
+- Spiky: removed (version 1 fix F9). It had been reworked in enhancement 9, which is withdrawn; the product is gone from the panel, the state and the hair builder.
 - Flat presses the hair thin and sleek against the head, removes the natural wave and most (85%) of the curl, so tight curls with flat product come out only gently wavy.
 - Changes ease in over 0.6 seconds (instant with reduced motion). Curling plays a burst of stars and a boing; product plays a puff of mist and a spray hiss (flat adds a soft pat). Sounds are Web Audio, no files, and respect mute.
 - Styling survives cutting and colouring: the cut stage keeps curl and product, and the scissors still work on styled hair.
@@ -135,7 +135,7 @@ Because hair must look right from front, left, back and right, hair is modelled 
 - A view angle (0°, 90°, 180°, 270°) is an orthographic projection of those curves into 2D. Locks are sorted by depth, drawn as filled, outlined bezier ribbons with a hard-edged shadow band (cel shading).
 - **Regions** (front, left, right, back) are azimuth sectors. Each region has its own length setting, with blended seams between sectors to avoid visible steps.
 - **Colour**: single = one fill; split = chosen by the strand's side (left/right in head-space, so it stays correct as the view rotates); ombre = gradient along strand length from root colour to tip colour.
-- **Curl** perturbs the strand curve (amplitude and frequency); **spiky** grows separate spikes from the scalp, up and out, with length following the hair length; **flat** pulls strands against the scalp and thins them.
+- **Curl** perturbs the strand curve (amplitude and frequency); **flat** pulls strands against the scalp and thins them.
 - **Washing** is a layered effect: wet (darker, flatter, droopy) versus dry, foam particles, rinse streams.
 - The rotate button animates between views (quick swing, then snap to the cardinal angle). Rendering uses continuous angle internally, so the transition costs nothing extra.
 - Head, face, ears, neck, shoulders and the **black hairdresser's gown** (collar, cape-style drape with cel-shaded folds, no other clothing visible) are also procedural with the same four-view projection (face visible only in the front and partially in the side views, back of the head otherwise).
@@ -167,7 +167,7 @@ interface SalonState {
     colour: { mode: 'single' | 'split' | 'ombre'; a: string; b: string };
     length: Record<Region, Length>;
     curl: 0 | 1 | 2 | 3;
-    product: 'none' | 'spiky' | 'flat';
+    product: 'none' | 'flat';
   };
   wash: { temperature: number; pressure: number; shampoo: 'mint' | 'citrus' | 'tropical'; conditioner: boolean };
   audio: { muted: boolean };
@@ -212,8 +212,8 @@ The renderer is a pure function of `SalonState` plus transient animation state (
 - **Done when:** a full wash, shampoo, rinse and condition cycle plays smoothly on a phone.
 
 ### Stage 5: Styling
-- Curl strengths (four levels including none), spiky and very flat product application
-- Interaction rules with length (spiky spike length follows the hair length; see enhancement 9)
+- Curl strengths (four levels including none) and very flat product application (spiky was removed by fix F9)
+- Interaction rules with length
 - **Done when:** curl, product and length combinations all render acceptably in all views.
 
 ### Stage 6: Photo export and polish
@@ -253,7 +253,7 @@ A checklist of changes requested after the first build. Tick each box when it is
 **Styling stage**
 - [x] 9. The spiky style is wrong. Spiky hair sticks up and out from the head, according to the length of the hair. Done: see the Spiky note under Stage 5. The old crown tufts and flicked ends are gone.
 
-### Version 1 fixes (F1, F3 to F8 done; F2 and F9 to F12 planned, not started)
+### Version 1 fixes (F1, F3 to F9 done; F2 and F10 to F12 planned, not started)
 
 A second checklist, from testing the enhancements. Nothing here is implemented yet, and none will be until the owner asks. Tick each box when it is built and checked.
 
@@ -270,7 +270,7 @@ A second checklist, from testing the enhancements. Nothing here is implemented y
 - [ ] F11. All washing status except shine (wet, drips, lather and conditioner lightness) is cancelled globally when she leaves the washing stage, and when she returns she always begins with dry hair. Shine is the one exception: it is kept when she leaves and when she returns, and is cancelled only by water being applied to her hair (settled by the owner). This widens F2, which only covered the wetness and drips.
 
 **Styling stage**
-- [ ] F9. Remove the spiky style. It isn't working, so the Spiky product button and all of its drawing go, leaving None and Flat. This replaces enhancement 9, which is withdrawn.
+- [x] F9. Remove the spiky style. It isn't working, so the Spiky product button and all of its drawing go, leaving None and Flat. This replaces enhancement 9, which is withdrawn. Done: the Spiky button, the spiky look number, the crown tufts, flicked ends and tapered tips in the hair builder, the pink spray colour and the related tests are gone; the Style panel shows None and Flat. Nothing was saved from earlier games, so nothing needs migrating. Checked in a browser.
 
 **Cutting stage**
 - [ ] F12. Add two shorter lengths below Crop: **Trimmed** (a grade 1 clipper cut, hair 3 mm long, shown as a close-cropped cap of short stubble in her hair colour) and **Shaved** (no hair at all, so her head shows her skin colour). Both work with the eight-swipe cut, in either direction, like the other lengths.
@@ -300,7 +300,7 @@ A second checklist, from testing the enhancements. Nothing here is implemented y
   - Fix F7: at what setting do the teeth show? (Assumed: only at the very coldest end of the temperature control, fading in and out, not at merely cool water.)
   - Fix F8: how light is "much lighter", and what does squeaky sound like? (Assumed: the lightest conditioned colour moves most of the way to white, still tinted by her hair colour so split and ombre stay readable; one short rubber-squeak per swipe stroke, in either direction. The sound can't be heard in the build environment, so the owner should check it.)
   - Fix F10 and F11 (settled): shine lasts until water is next applied to her hair, however many stages she passes through, including back at the sink; leaving the stage clears everything else.
-  - Fix F9: what happens to a game already in the spiky style? (Assumed: nothing to carry over; the product simply becomes None.)
+  - Fix F9 (settled): the spiky product is gone with nothing to carry over.
   - Fix F12: how do the new lengths behave elsewhere? (Assumed: trimmed hair still takes colour, lather and wetness as a thin cap; shaved shows nothing to colour, lather, wet or style, and the colour and style panels stay usable but show no change. Scissors clippings fall for trimmed and shaved cuts like the others. The camera photo shows a bald head in skin tone. Trimmed's 3 mm is shown as the shortest visible hair, not to scale.)
   - Fix F2: should coming back to the sink also clear any lather or conditioner, or only the wetness and drips? (Assumed: only wetness and drips; the lather and conditioner levels stay, so a lightened head of hair stays lightened until rinsed.)
   - Fix F3: how long does the lightening last, and how light is "lightest"? (Assumed: it stays until water rinses it off, as in F4, and the lightest is a clearly lighter tint of her current hair colour that still works with split and ombre colours. It replaces the cream and bloop effects; the squirt blob stays.)

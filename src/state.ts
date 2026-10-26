@@ -47,7 +47,7 @@ export interface SalonState {
     colour: HairColour;
     length: Record<Region, Length>;
     curl: 0 | 1 | 2 | 3;
-    product: 'none' | 'spiky' | 'flat';
+    product: 'none' | 'flat';
   };
   /** The washing controls: water settings, the product on the shelf that is selected, what the water button is doing, and how many times product has been squirted on. */
   wash: { temperature: number; pressure: number; product: Product; squirts: number };
@@ -263,8 +263,8 @@ export function setCurl(curl: 0 | 1 | 2 | 3): void {
   salon.update((s) => (s.hair.curl === curl ? s : { ...s, hair: { ...s.hair, curl } }));
 }
 
-/** The styling product on the hair: none, spiky gel or a flattening serum. Only one at a time. */
-export function setStyleProduct(product: 'none' | 'spiky' | 'flat'): void {
+/** The styling product on the hair: none or a flattening serum. */
+export function setStyleProduct(product: 'none' | 'flat'): void {
   salon.update((s) => (s.hair.product === product ? s : { ...s, hair: { ...s.hair, product } }));
 }
 

@@ -149,15 +149,11 @@ function buildSamples(
   swept: boolean,
   phase: number,
   look: Look,
-  index: number,
 ): LockSample[] {
-  // Flat product plasters the hair down and takes most of the curl out; spiky stands the crown up in tufts of
-  // different heights and flicks the ends outwards, less so on long hair, which is too heavy to stand.
+  // Flat product plasters the hair down and takes most of the curl out.
   const flat = look.flat;
   const curl = look.curl * (1 - 0.85 * flat);
-  const spike = look.spiky * (1 - 0.5 * smoothstep(60, 220, reach));
-  const tuft = spike * (9 + 9 * (index % 3));
-  const top = HEAD.ry + th + tuft;
+  const top = HEAD.ry + th;
   const ys: number[] = [];
 
   // Over the dome, sampled by polar angle so the curve stays smooth near the crown.
@@ -189,8 +185,7 @@ function buildSamples(
     const curlEnv = smoothstep(-85, -5, y);
     const curlSwing = curlAmp * Math.sin(y * curlFreq + phase) * curlEnv;
     const curlPuff = 1 + 0.05 * curl * Math.sin(y * curlFreq + phase + 1.3) * curlEnv;
-    const flick = 1 + 0.22 * spike * smoothstep(0.55, 1, u);
-    const size = scale * flare * curlPuff * flick;
+    const size = scale * flare * curlPuff;
     return {
       y,
       rx: (HEAD.rx + th) * size,
@@ -199,8 +194,7 @@ function buildSamples(
       hw:
         LOCK_HALF_ANGLE *
         (swept ? SWEPT_NARROWING : 1) *
-        (1 - 0.55 * smoothstep(0.62, 1, u)) *
-        (1 - 0.4 * spike * smoothstep(0.5, 1, u)),
+        (1 - 0.55 * smoothstep(0.62, 1, u)),
     };
   });
 }
@@ -226,7 +220,7 @@ export function buildLocks(lengths: CutLengths, seed: number, look: Look = NO_LO
     const fullness = 3 + 7 * smoothstep(-30, 180, reach) + (i % 2) * 2 + 1.5 * look.curl;
     const th = fullness + (1.5 - fullness) * look.flat;
     const phase = rand() * Math.PI * 2;
-    locks.push({ index: i, a0, th, reach, swept, samples: buildSamples(a0, th, reach, swept, phase, look, i) });
+    locks.push({ index: i, a0, th, reach, swept, samples: buildSamples(a0, th, reach, swept, phase, look) });
   }
   return locks;
 }

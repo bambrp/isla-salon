@@ -5,7 +5,6 @@
   const CURLS: readonly CurlLevel[] = [0, 1, 2, 3];
   const PRODUCTS: ReadonlyArray<{ product: StyleProduct; label: string; hint: string }> = [
     { product: 'none', label: 'None', hint: 'Natural hair, no product.' },
-    { product: 'spiky', label: 'Spiky', hint: 'Gel stands the hair up in spikes. Best on short cuts: long hair only flicks at the ends.' },
     { product: 'flat', label: 'Flat', hint: 'Serum presses the hair sleek against her head and smooths out most of the curl.' },
   ];
 
