@@ -307,3 +307,28 @@ describe('trimmed and shaved', () => {
     expect(locks.length).toBeLessThan(LOCK_COUNT);
   });
 });
+
+describe('clipper cut edge', () => {
+  it('fades in from nearly all skin at the outer edge to all hair colour in the middle, steadily', async () => {
+    const { stubbleMix, STUBBLE_STEPS } = await import('./hair');
+    let prev = -1;
+    for (let k = 0; k < STUBBLE_STEPS; k++) {
+      const m = stubbleMix(k);
+      expect(m).toBeGreaterThan(prev);
+      prev = m;
+    }
+    expect(stubbleMix(0)).toBeLessThan(0.2);
+    expect(stubbleMix(STUBBLE_STEPS - 1)).toBe(1);
+  });
+  it('has no strands or outline at the trimmed length, only the soft area', async () => {
+    const { Graphics } = await import('pixi.js');
+    const { buildLocks, drawLocks, splitLocks } = await import('./hair');
+    const g = new Graphics();
+    const locks = buildLocks({ front: 6, left: 6, right: 6, back: 6 }, 6);
+    const { front } = splitLocks(locks, 0);
+    drawLocks(g, front, () => [{ u0: 0, u1: 1, colour: 0x3b3050 }], 0xffd9b8);
+    const ins = (g as unknown as { context: { instructions: Array<{ action: string; data: { style: { alpha: number } } }> } }).context.instructions;
+    expect(ins.filter((i) => i.action === 'stroke' && i.data.style.alpha > 0.003)).toHaveLength(0);
+    expect(ins.filter((i) => i.action === 'fill').length).toBeGreaterThan(front.length * 4);
+  });
+});

@@ -389,12 +389,52 @@ export function sliceEdge(flat: number[], u: number[], u0: number, u1: number): 
 /** Each colour band runs this much into the next, which is painted over it, so no hairline gap shows between bands. */
 const BAND_OVERLAP = 0.006;
 
+/** How far (design pixels) a clipper cut's hair fades in from the bare skin at its edge, and in how many steps. */
+export const STUBBLE_FADE_PX = 20;
+export const STUBBLE_STEPS = 8;
+
+/**
+ * The fraction of the hair colour showing at each step of a clipper cut's edge, from the outermost step, which is barely
+ * more than skin, to the innermost, which is the full hair colour.
+ */
+export function stubbleMix(step: number, steps = STUBBLE_STEPS): number {
+  return smoothstep(0, 1, (step + 1) / steps) * 0.92 + 0.08 * (step === steps - 1 ? 1 : 0);
+}
+
+/**
+ * A clipper cut (grade 1, 3 mm): one flat area of the hair colour with no outline, whose edge fades in from the skin
+ * colour so there is no hard hairline. Each lock paints a few nested slices of itself, each one fuller in hair colour than
+ * the one outside it, in colours already mixed with the skin so that where neighbours overlap nothing builds up.
+ */
+function drawStubble(g: Graphics, p: ProjectedLock, bands: Band[], skin: number): void {
+  const colour = bands[Math.floor(bands.length / 2)]?.colour ?? 0;
+  const fadeLen = Math.max(1, p.lock.reach - p.lock.samples[0].y);
+  const fade = Math.min(0.5, STUBBLE_FADE_PX / fadeLen);
+  const alpha = p.lock.alpha * p.lock.stubble;
+  for (let k = 0; k < STUBBLE_STEPS; k++) {
+    const u1 = k === 0 ? 1 : 1 - (fade * k) / (STUBBLE_STEPS - 1);
+    const left = u1 >= 1 ? p.left : sliceEdge(p.left, p.u, 0, u1);
+    const right = u1 >= 1 ? p.right : sliceEdge(p.right, p.u, 0, u1);
+    if (left.length < 4 || right.length < 4) continue;
+    const tip = u1 >= 1 ? p.apex : [];
+    g.poly(withoutRepeats([...left, ...tip, ...reversePairs(right)])).fill({ color: mixRgb(skin, colour, stubbleMix(k)), alpha });
+  }
+}
+
+/** A blend of two 0xRRGGBB colours, k from 0 (all a) to 1 (all b). */
+function mixRgb(a: number, b: number, k: number): number {
+  const ch = (shift: number) => Math.round(((a >> shift) & 255) * (1 - k) + ((b >> shift) & 255) * k);
+  return (ch(16) << 16) | (ch(8) << 8) | ch(0);
+}
+
 /**
  * Draw locks back to front. Each lock is painted band by band (one band for a plain colour, several for an
  * ombre), each with a lit and a shadow tone, then outlined once so the outline runs unbroken down the lock.
  */
-export function drawLocks(g: Graphics, projected: ProjectedLock[], bandsOf: (lock: Lock) => Band[]): void {
+export function drawLocks(g: Graphics, projected: ProjectedLock[], bandsOf: (lock: Lock) => Band[], skin = 0xffd9b8): void {
   for (const p of projected) {
+    // A clipper cut is not drawn as strands: its hair is one flat area (see drawStubble), so the strands fade out as it takes over.
+    const strands = p.lock.alpha * (1 - p.lock.stubble);
     for (const band of bandsOf(p.lock)) {
       const u1 = band.u1 >= 1 ? 1 : Math.min(1, band.u1 + BAND_OVERLAP);
       const whole = band.u0 <= 0 && u1 >= 1;
@@ -408,14 +448,17 @@ export function drawLocks(g: Graphics, projected: ProjectedLock[], bandsOf: (loc
       const shadow = shade(lit, SHADOW_FACTOR);
       const tip = u1 >= 1 ? p.apex : [];
 
-      g.poly(withoutRepeats([...left, ...tip, ...reversePairs(right)])).fill({ color: shadow, alpha: p.lock.alpha });
-      g.poly(withoutRepeats([...left, ...reversePairs(boundary)])).fill({ color: lit, alpha: p.lock.alpha });
+      if (strands > 0.003) {
+        g.poly(withoutRepeats([...left, ...tip, ...reversePairs(right)])).fill({ color: shadow, alpha: strands });
+        g.poly(withoutRepeats([...left, ...reversePairs(boundary)])).fill({ color: lit, alpha: strands });
+      }
     }
+    if (p.lock.stubble > 0.003) drawStubble(g, p, bandsOf(p.lock), skin);
     g.poly(withoutRepeats([...p.left, p.apex[0], p.apex[1], ...reversePairs(p.right)])).stroke({
       width: OUTLINE_THIN,
-      // Stubble is outlined only faintly, so a close crop reads as short hair rather than a cap of petals.
+      // Stubble has no outline at all: it is a soft area, not strands.
       color: INK,
-      alpha: p.lock.alpha * (1 - 0.65 * p.lock.stubble),
+      alpha: strands,
       join: 'round',
       cap: 'round',
     });

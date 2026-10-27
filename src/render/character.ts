@@ -363,7 +363,7 @@ export function drawCharacter(
   const bandsOf = (lock: Lock) => paint.bands(lock.a0);
   const { behind, front } = splitLocks(locks, phi);
 
-  drawLocks(g, behind, bandsOf);
+  drawLocks(g, behind, bandsOf, skin);
 
   drawGown(g, phi);
   // From the front the V collar sits under the chin and the neck overlaps it; from the back the collar wraps in front.
@@ -380,7 +380,7 @@ export function drawCharacter(
   drawEars(g, skin, phi, true);
   drawFace(g, state, skin, phi, blink, mood);
 
-  drawLocks(g, front, bandsOf);
+  drawLocks(g, front, bandsOf, skin);
 
   // Highlight band, only where hair actually covers.
   drawSheen(g, sheenRuns(locks, phi), paint);
