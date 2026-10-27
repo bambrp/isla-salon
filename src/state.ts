@@ -1,8 +1,8 @@
-import { writable } from 'svelte/store';
+import { get, writable } from 'svelte/store';
 import { withColour, withMode, type ColourMode, type HairColour } from './render/colour';
 import { SWIPES_TO_CUT, lengthsOf, planPosition, positionOf, positionsOf, type CutPlan, type Positions } from './cut';
 import { type Brows } from './features';
-import { CAST, ISLA, makeCharacter, startingHair, type CharacterDef } from './cast';
+import { CAST, ISLA, makeCharacter, presetLook, randomLook, startingHair, type CharacterDef } from './cast';
 import { sameLevels, type Applying, type Product, type Shampoo, type WashLevels } from './render/wash';
 
 export type { Applying, ColourMode, HairColour, Product, Shampoo, WashLevels, CharacterDef };
@@ -335,9 +335,31 @@ export function switchCharacter(id: string): void {
   });
 }
 
-/** Change how the character in the chair looks (features, colouring, name) without touching their hair work. Used by the test pages for now; the Character stage comes later. */
+/**
+ * Change how the character in the chair looks (features, colouring, name) without touching their hair work, except that
+ * when their natural hair colour changes and their hair is still dyed that natural colour, the hair follows it: changing
+ * who they naturally are changes undyed hair, and a deliberate dye is left alone.
+ */
 export function setCharacterLook(patch: Partial<Omit<CharacterDef, 'brows'>> & { brows?: Partial<Brows> }): void {
-  salon.update((s) => ({ ...s, character: makeCharacter({ ...s.character, ...patch, brows: { ...s.character.brows, ...patch.brows } }) }));
+  salon.update((s) => {
+    const character = makeCharacter({ ...s.character, ...patch, brows: { ...s.character.brows, ...patch.brows } });
+    let hair = s.hair;
+    const c = hair.colour;
+    if (character.hair !== s.character.hair && c.mode === 'single' && c.a.toLowerCase() === s.character.hair.toLowerCase()) {
+      hair = { ...hair, colour: withColour(c, 'a', character.hair) };
+    }
+    return { ...s, character, hair };
+  });
+}
+
+/** Give the character in the chair a random look (Randomise). Their name, hair seed and hair work are kept. */
+export function randomiseLook(rand: () => number = Math.random): void {
+  setCharacterLook(randomLook(rand));
+}
+
+/** Put the character in the chair's looks back to their preset (Reset character); their hair work is kept. */
+export function resetLook(): void {
+  setCharacterLook(presetLook(get(salon).character.id));
 }
 
 export function toggleMute(): void {

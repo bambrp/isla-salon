@@ -36,7 +36,7 @@
       aria-label="{c.name}, age {member.age}"
       on:click={() => switchCharacter(id)}
     >
-      <svg viewBox="0 0 64 64" width="46" height="46" aria-hidden="true">
+      <svg viewBox="0 0 64 64" width="40" height="40" aria-hidden="true">
         {#if !bald && long}<rect x="9" y="12" width="46" height="44" rx="16" fill={colour} stroke="#1d1030" stroke-width="3" />{/if}
         <rect x="14" y="48" width="36" height="16" rx="8" fill="#1d1030" />
         <ellipse cx="32" cy="32" rx="17" ry="19" fill={hex(c.skin)} stroke="#1d1030" stroke-width="3" />
@@ -45,7 +45,7 @@
         <circle cx="39" cy="35" r="2.6" fill={hex(c.eyes)} stroke="#1d1030" stroke-width="1.2" />
         <path d="M26 44 Q32 48 38 44" fill="none" stroke="#1d1030" stroke-width="2.5" stroke-linecap="round" />
       </svg>
-      <span class="name">{c.name} <span class="age">{member.age}</span></span>
+      <span class="name">{c.name}</span>
     </button>
   {/each}
 </div>
@@ -53,8 +53,8 @@
 <style>
   .cast {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 8px;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 6px;
   }
 
   .who {
@@ -63,7 +63,7 @@
     grid-template-columns: auto;
     justify-items: center;
     gap: 0;
-    padding: 4px 2px 5px;
+    padding: 3px 1px 4px;
     background: var(--cream);
     border: var(--outline);
     border-radius: var(--radius);
@@ -80,12 +80,7 @@
 
   .name {
     font-weight: 800;
-    font-size: 0.85rem;
+    font-size: 0.72rem;
   }
 
-  .age {
-    font-size: 0.7rem;
-    font-weight: 700;
-    opacity: 0.7;
-  }
 </style>

@@ -1,4 +1,5 @@
-import { DEFAULT_FEATURES, EYE_COLOURS, SKIN_TONES, cleanFeatures, type Brows, type FaceFeatures } from './features';
+import { BROW_HEIGHTS, DEFAULT_FEATURES, EYE_COLOURS, FACE_SHAPES, SKIN_TONES, cleanFeatures, type Brows, type FaceFeatures } from './features';
+import { HAIR_SWATCHES } from './render/colour';
 import type { Length, Region } from './state';
 
 /** Who is in the chair: a name, colouring, face features (nose, brows, face shape, Adam's apple) and the seed that varies their hair. */
@@ -126,4 +127,30 @@ export function castMember(id: string): CastMember | undefined {
 export function startingHair(id: string): HairStart {
   const s = (castMember(id) ?? CAST[0]).start;
   return { length: { ...s.length }, curl: s.curl, product: s.product };
+}
+
+/** The parts of a character that the Character stage can change (everything but the name, id and hair seed). */
+export type Look = Pick<CharacterDef, 'skin' | 'eyes' | 'hair' | 'nose' | 'adamsApple' | 'face'> & { brows: Brows };
+
+/** A character's look as their preset has it, which Reset character returns to. */
+export function presetLook(id: string): Look {
+  const c = (castMember(id) ?? CAST[0]).character;
+  return { skin: c.skin, eyes: c.eyes, hair: c.hair, nose: c.nose, adamsApple: c.adamsApple, face: c.face, brows: { ...c.brows } };
+}
+
+/**
+ * A random look for Randomise: nose size, eye colour, Adam's apple, brow thickness, arch, height and spacing, skin tone,
+ * face shape and natural hair colour. `rand` gives numbers from 0 up to (not including) 1.
+ */
+export function randomLook(rand: () => number): Look {
+  const pick = <T,>(list: readonly T[]): T => list[Math.min(list.length - 1, Math.floor(rand() * list.length))];
+  return {
+    skin: pick(SKIN_TONES).hex,
+    eyes: pick(EYE_COLOURS).hex,
+    hair: pick(HAIR_SWATCHES).hex,
+    nose: rand(),
+    adamsApple: rand() < 0.4,
+    face: pick(FACE_SHAPES),
+    brows: { thickness: rand(), arch: rand(), height: pick(BROW_HEIGHTS), spacing: rand() },
+  };
 }

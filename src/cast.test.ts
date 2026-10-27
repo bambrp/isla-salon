@@ -107,3 +107,67 @@ describe('switching characters', () => {
     expect(get(salon).hair.colour.a).toBe('#ff3b4e');
   });
 });
+
+describe('changing a look', () => {
+  beforeEach(() => salon.set(initialState()));
+  const seeded = (n: number) => { let x = n; return () => ((x = (x * 16807) % 2147483647) - 1) / 2147483646; };
+
+  it('randomises every feature, in range, and keeps the name, seed and hair work', async () => {
+    const { randomiseLook } = await import('./state');
+    const { SKIN_TONES, EYE_COLOURS, FACE_SHAPES, BROW_HEIGHTS } = await import('./features');
+    const seen = { skin: new Set<number>(), eyes: new Set<number>(), face: new Set<string>(), height: new Set<string>(), apple: new Set<boolean>(), hair: new Set<string>() };
+    const rand = seeded(5);
+    for (let i = 0; i < 300; i++) {
+      randomiseLook(rand);
+      const c = get(salon).character;
+      expect(c.name).toBe('Isla');
+      expect(c.seed).toBe(6);
+      expect(SKIN_TONES.map((t) => t.hex)).toContain(c.skin);
+      expect(EYE_COLOURS.map((e) => e.hex)).toContain(c.eyes);
+      expect(FACE_SHAPES).toContain(c.face);
+      expect(BROW_HEIGHTS).toContain(c.brows.height);
+      expect(HAIR_SWATCHES.map((s) => s.hex)).toContain(c.hair);
+      for (const v of [c.nose, c.brows.thickness, c.brows.arch, c.brows.spacing]) expect(v >= 0 && v <= 1).toBe(true);
+      seen.skin.add(c.skin); seen.eyes.add(c.eyes); seen.face.add(c.face); seen.height.add(c.brows.height); seen.apple.add(c.adamsApple); seen.hair.add(c.hair);
+    }
+    expect(seen.skin.size).toBe(9);
+    expect(seen.eyes.size).toBe(4);
+    expect(seen.face.size).toBe(4);
+    expect(seen.height.size).toBe(3);
+    expect(seen.apple.size).toBe(2);
+    expect(seen.hair.size).toBe(HAIR_SWATCHES.length);
+    expect(get(salon).hair.length).toEqual(startingHair('isla').length);
+  });
+  it('lets undyed hair follow the natural colour, but leaves a deliberate dye alone', async () => {
+    const { setCharacterLook } = await import('./state');
+    setCharacterLook({ hair: '#ff3b4e' });
+    expect(get(salon).hair.colour.a).toBe('#ff3b4e');
+    setColour('a', '#9b5de5');
+    setCharacterLook({ hair: '#2ed3a5' });
+    expect(get(salon).character.hair).toBe('#2ed3a5');
+    expect(get(salon).hair.colour.a).toBe('#9b5de5');
+  });
+  it('keeps the brows following the natural colour', async () => {
+    const { browColour } = await import('./render/character');
+    const { setCharacterLook } = await import('./state');
+    setCharacterLook({ hair: '#ffffff' });
+    expect(browColour(get(salon).character.hair)).toBe(0x808080);
+  });
+  it('resets a character to their preset look, for everyone in the cast', async () => {
+    const { randomiseLook, resetLook } = await import('./state');
+    for (const m of CAST) {
+      switchCharacter(m.character.id);
+      randomiseLook(seeded(m.age));
+      resetLook();
+      expect(get(salon).character).toEqual(m.character);
+    }
+  });
+  it('keeps edits when someone else has a turn', async () => {
+    const { setCharacterLook } = await import('./state');
+    setCharacterLook({ nose: 1, face: 'square' });
+    switchCharacter('leo');
+    switchCharacter('isla');
+    expect(get(salon).character.nose).toBe(1);
+    expect(get(salon).character.face).toBe('square');
+  });
+});

@@ -14,6 +14,9 @@ import {
   setStage,
   setStyleProduct,
   setCharacterLook,
+  randomiseLook,
+  resetLook,
+  switchCharacter,
 } from './state';
 import './app.css';
 
@@ -36,6 +39,9 @@ if (new URLSearchParams(window.location.search).has('debug')) {
     setCurl,
     setStyleProduct,
     setCharacterLook,
+    randomiseLook,
+    resetLook,
+    switchCharacter,
     gsap,
   };
 }
