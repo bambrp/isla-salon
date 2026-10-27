@@ -33,7 +33,7 @@ export const BUBBLE_COUNT = 96;
  * Scatter bubbles over the hair for a given cut. They keep off the face (the front is crowned only above the
  * forehead) and stop above where the hair ends, so a short cut is lathered high and a long one all the way down.
  */
-export function foamLayout(lengths: CutLengths, seed: number): Bubble[] {
+export function foamLayout(lengths: CutLengths, seed: number, lift = 0): Bubble[] {
   const rand = mulberry32(seed * 104729 + 7);
   const top = -(HEAD.ry + 6);
   const out: Bubble[] = [];
@@ -44,7 +44,7 @@ export function foamLayout(lengths: CutLengths, seed: number): Bubble[] {
     const reach = reachAt(az, lengths);
     const inFront = Math.abs(az) < FRONT_SECTOR;
     // Front: only the crown and forehead, clear of the brows. Elsewhere: down to just above the ends, at most to the shoulders.
-    const low = inFront ? -46 : Math.min(reach - 12, 170);
+    const low = inFront ? -46 - lift : Math.min(reach - 12, 170);
     const bottom = Math.max(top + 14, low);
     const y = lerp(top + 4, bottom, Math.pow(rand(), 1.25));
     out.push({ az, y, r: 6 + rand() * 7, threshold: (i + rand()) / BUBBLE_COUNT });

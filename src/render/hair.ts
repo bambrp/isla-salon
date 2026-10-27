@@ -185,6 +185,7 @@ function buildSamples(
   swept: boolean,
   phase: number,
   look: Look,
+  lift: number,
 ): LockSample[] {
   // Flat product plasters the hair down and takes most of the curl out.
   const flat = look.flat;
@@ -214,7 +215,7 @@ function buildSamples(
   return ys.map((y) => {
     const scale = y <= 0 ? Math.sqrt(Math.max(0, 1 - (y / top) ** 2)) : 1;
     const flare = 1 + 0.1 * (1 - flat) * smoothstep(110, 230, y);
-    const sweep = swept ? (aT - a0) * smoothstep(-58, -18, y) : 0;
+    const sweep = swept ? (aT - a0) * smoothstep(-58 - lift, -18 - lift, y) : 0;
     const wave = waveAmp * Math.sin(y * 0.045 + phase) * smoothstep(-60, 40, y);
     const u = span > 0 ? (y - ys[0]) / span : 1;
     // Curl swings the lock from side to side and in and out, so the silhouette ripples in every view.
@@ -235,8 +236,11 @@ function buildSamples(
   });
 }
 
-/** Build every lock for the given cut. Deterministic for a given seed. */
-export function buildLocks(lengths: CutLengths, seed: number, look: Look = NO_LOOK): Lock[] {
+/**
+ * Build every lock for the given cut. Deterministic for a given seed. `lift` is how much higher than Isla's the character's
+ * brows reach (see browLift), so the fringe stops higher and the sweep to the sides starts higher to keep them clear.
+ */
+export function buildLocks(lengths: CutLengths, seed: number, look: Look = NO_LOOK, lift = 0): Lock[] {
   const rand = mulberry32(seed * 7919 + 13);
   const locks: Lock[] = [];
 
@@ -253,7 +257,7 @@ export function buildLocks(lengths: CutLengths, seed: number, look: Look = NO_LO
 
     const inFront = Math.abs(a0) < FRONT_SECTOR;
     const swept = inFront && reach >= SWEEP_MIN_REACH;
-    if (inFront && !swept) reach = Math.min(reach, FRINGE_MAX_REACH);
+    if (inFront && !swept) reach = Math.min(reach, FRINGE_MAX_REACH - lift);
 
     // Longer hair is fuller; every other lock sits slightly proud for a layered look.
     // Fuller with curl, and pressed close to the head with flat product.
@@ -262,7 +266,7 @@ export function buildLocks(lengths: CutLengths, seed: number, look: Look = NO_LO
     // A clipper cut lies as close as stubble: 3 mm, which is barely any thickness at all.
     const th = 1.3 + (slick - 1.3) * bulk;
     const phase = rand() * Math.PI * 2;
-    locks.push({ index: i, a0, th, reach, swept, alpha, stubble: 1 - bulk, samples: buildSamples(a0, th, reach, swept, phase, look) });
+    locks.push({ index: i, a0, th, reach, swept, alpha, stubble: 1 - bulk, samples: buildSamples(a0, th, reach, swept, phase, look, lift) });
   }
   return locks;
 }

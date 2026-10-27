@@ -14,6 +14,17 @@ import { hexToInt, type HairPaint } from './colour';
 import { CALM, tintedSkin, type Mood } from './complexion';
 import { drawLocks, sheenRuns, splitLocks, type Lock, type SheenPoint } from './hair';
 import { INK, OUTLINE, PALETTE, SHADOW_FACTOR, celEllipse, shade } from './style';
+import {
+  BROW_SPAN_DEG,
+  browLineY,
+  browStartDeg,
+  browWidth,
+  facePoints,
+  noseScale,
+  noseStandOut,
+  type Brows,
+  type FaceShape,
+} from '../features';
 
 /** Gown opening sits here (relative to the head centre) and the collar dips at the front, rises at the back. */
 const COLLAR_Y = 398 - HEAD.cy;
@@ -99,13 +110,47 @@ function drawSnap(g: Graphics, phi: number): void {
   g.circle(p.sx, p.sy, 4.5).fill(PALETTE.steel).stroke({ width: 2, color: INK });
 }
 
-function drawNeck(g: Graphics, skin: number, phi: number): void {
+function drawNeck(g: Graphics, skin: number, phi: number, adamsApple: boolean): void {
   // The neck sits a little behind the head's centre, so in profile it slides towards the back of the head.
   const cx = HEAD.cx + 10 * Math.sin(phi);
   g.roundRect(cx - 26, 340, 52, 66, 14)
     .fill(shade(skin, SHADOW_FACTOR + 0.04))
     .stroke({ width: OUTLINE, color: INK });
   g.roundRect(cx - 26, 340, 36, 54, 12).fill(skin);
+  if (adamsApple) drawAdamsApple(g, skin, phi, cx);
+}
+
+/**
+ * The Adam's apple: a small bump on the front of the throat. In profile it stands out of the neck's front edge; face-on
+ * it is a faint curved mark with a highlight; from behind it is hidden.
+ */
+function drawAdamsApple(g: Graphics, skin: number, phi: number, neckX: number): void {
+  const y = 374;
+  const sinPhi = Math.sin(phi);
+  const side = clamp(Math.abs(sinPhi) * 1.8, 0, 1);
+  const front = Math.max(0, Math.cos(phi));
+  if (side > 0.05) {
+    // The face points towards screen-left when sin(phi) is positive.
+    const dir = -Math.sign(sinPhi);
+    const edge = neckX + dir * 26;
+    const r = 6 * side;
+    const arc: number[] = [];
+    const steps = 8;
+    for (let k = 0; k <= steps; k++) {
+      const a = -Math.PI / 2 + (k / steps) * Math.PI;
+      arc.push(edge + dir * Math.cos(a) * r, y + Math.sin(a) * r * 1.15);
+    }
+    const tone = dir > 0 ? shade(skin, SHADOW_FACTOR + 0.04) : skin;
+    g.poly(arc).fill(tone);
+    g.poly(arc, false).stroke({ width: OUTLINE - 1, color: INK, alpha: side, cap: 'round', join: 'round' });
+  }
+  if (front > 0.2) {
+    const a = front * front;
+    g.moveTo(neckX - 5, y - 1)
+      .quadraticCurveTo(neckX, y + 6, neckX + 5, y - 1)
+      .stroke({ width: 2.5, color: shade(skin, 0.7), alpha: 0.75 * a, cap: 'round' });
+    g.circle(neckX - 2, y - 4, 1.8).fill({ color: shade(skin, 1.06), alpha: a });
+  }
 }
 
 // ---------------------------------------------------------------------------------------------------
@@ -123,9 +168,20 @@ function drawEars(g: Graphics, skin: number, phi: number, nearSide: boolean): vo
   }
 }
 
-function drawHead(g: Graphics, skin: number, phi: number): void {
+function drawHead(g: Graphics, skin: number, phi: number, face: FaceShape): void {
   const hw = silhouetteHalfWidth(HEAD.rx, HEAD.rz, phi);
-  celEllipse(g, HEAD.cx, HEAD.cy, hw, HEAD.ry, skin, { inset: 9 });
+  if (face === 'oval') {
+    celEllipse(g, HEAD.cx, HEAD.cy, hw, HEAD.ry, skin, { inset: 9 });
+    return;
+  }
+  // The same cel-shaded head as the oval, with a differently shaped jaw: a shadow-toned outline and a lit shape inside it.
+  const pts = facePoints(face, hw, HEAD.ry);
+  const outer = pts.map((v, i) => (i % 2 === 0 ? HEAD.cx + v : HEAD.cy + v));
+  const kx = Math.max(1, hw - 9) / hw;
+  const ky = Math.max(1, HEAD.ry - 9 * 0.8) / HEAD.ry;
+  const inner = pts.map((v, i) => (i % 2 === 0 ? HEAD.cx - 6 + v * kx : HEAD.cy - 4 + v * ky));
+  g.poly(outer).fill(shade(skin, SHADOW_FACTOR + 0.02)).stroke({ width: OUTLINE, color: INK, join: 'round' });
+  g.poly(inner).fill(skin);
 }
 
 function drawEye(g: Graphics, az: number, phi: number, iris: number, blink: number): void {
@@ -155,19 +211,20 @@ export function browColour(naturalHair: string): number {
   return shade(hexToInt(naturalHair), 0.5);
 }
 
-function drawBrow(g: Graphics, side: number, phi: number, colour: number, annoyed: number): void {
+function drawBrow(g: Graphics, side: number, phi: number, colour: number, annoyed: number, brows: Brows): void {
   const pts: Array<Pt & { visible: boolean }> = [];
   const steps = 8;
+  const start = browStartDeg(brows);
   for (let k = 0; k <= steps; k++) {
     const t = k / steps;
-    const az = side * (12 + 24 * t) * DEG;
+    const az = side * (start + BROW_SPAN_DEG * t) * DEG;
     // Annoyed: the inner ends sink and the outer ends lift, so the brows slant down towards the nose.
-    const y = -13 - 5 * Math.sin(Math.PI * t) + annoyed * (7 - 12 * t);
+    const y = browLineY(brows, t) + annoyed * (7 - 12 * t);
     const s = surface(az, y, 0.5);
     const { sx, sy } = project(s.x, s.y, s.z, phi);
     pts.push({ x: sx, y: sy, visible: facing(s, phi) > 0.12 });
   }
-  strokeRuns(g, pts, { width: 4, color: colour });
+  strokeRuns(g, pts, { width: browWidth(brows), color: colour });
 }
 
 /** How the mouth line sits at t (-1 to 1 across the mouth): a smile, turned over by annoyance, flattened by a clench. */
@@ -231,20 +288,21 @@ function drawCheeks(g: Graphics, phi: number, tone: number): void {
   }
 }
 
-function drawNose(g: Graphics, skin: number, phi: number): void {
-  const nose = project(0, 26, HEAD.rz + 4, phi);
+function drawNose(g: Graphics, skin: number, phi: number, size: number): void {
+  const k = noseScale(size);
+  const nose = project(0, 26, HEAD.rz + 4 + noseStandOut(size), phi);
   if (nose.d <= 0) return;
   const side = clamp(Math.abs(Math.sin(phi)) * 1.8, 0, 1);
   const front = Math.max(0, Math.cos(phi));
   // In profile the nose is a bump poking out of the silhouette; face-on it is just a small curved mark.
   if (side > 0.05) {
-    g.circle(nose.sx, nose.sy, 6.5).fill(skin).stroke({ width: 3, color: INK, alpha: side });
-    g.circle(nose.sx - Math.sign(Math.sin(phi)) * 1.5, nose.sy - 1.5, 3).fill(shade(skin, 1.03));
+    g.circle(nose.sx, nose.sy, 6.5 * k).fill(skin).stroke({ width: 3, color: INK, alpha: side });
+    g.circle(nose.sx - Math.sign(Math.sin(phi)) * 1.5 * k, nose.sy - 1.5 * k, 3 * k).fill(shade(skin, 1.03));
   }
   if (front > 0.2) {
     const a = front * front;
-    g.moveTo(nose.sx - 4, nose.sy - 1)
-      .quadraticCurveTo(nose.sx, nose.sy + 6, nose.sx + 4, nose.sy - 1)
+    g.moveTo(nose.sx - 4 * k, nose.sy - 1)
+      .quadraticCurveTo(nose.sx, nose.sy + 6 * k, nose.sx + 4 * k, nose.sy - 1)
       .stroke({ width: 3, color: shade(skin, 0.6), alpha: a, cap: 'round' });
   }
 }
@@ -255,9 +313,9 @@ function drawFace(g: Graphics, state: SalonState, skin: number, phi: number, bli
   for (const side of [-1, 1] as const) {
     drawEye(g, side * 23 * DEG, phi, eyes, blink);
     // The brows keep to her natural hair colour, darkened, and never take the dye.
-    drawBrow(g, side, phi, browColour(state.character.hair), mood.annoyed);
+    drawBrow(g, side, phi, browColour(state.character.hair), mood.annoyed, state.character.brows);
   }
-  drawNose(g, skin, phi);
+  drawNose(g, skin, phi, state.character.nose);
   drawTeeth(g, phi, mood.annoyed, mood.clench);
   drawMouth(g, phi, mood.annoyed, mood.clench);
 }
@@ -310,14 +368,14 @@ export function drawCharacter(
   // From the front the V collar sits under the chin and the neck overlaps it; from the back the collar wraps in front.
   const collarFirst = Math.cos(phi) > 0.3;
   if (collarFirst) drawCollar(g, phi);
-  drawNeck(g, skin, phi);
+  drawNeck(g, skin, phi, state.character.adamsApple);
   if (!collarFirst) {
     drawCollar(g, phi);
     drawSnap(g, phi);
   }
 
   drawEars(g, skin, phi, false);
-  drawHead(g, skin, phi);
+  drawHead(g, skin, phi, state.character.face);
   drawEars(g, skin, phi, true);
   drawFace(g, state, skin, phi, blink, mood);
 

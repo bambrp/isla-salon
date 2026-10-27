@@ -1,6 +1,7 @@
 import { writable } from 'svelte/store';
 import { withColour, withMode, type ColourMode, type HairColour } from './render/colour';
 import { SWIPES_TO_CUT, lengthsOf, planPosition, positionOf, positionsOf, type CutPlan, type Positions } from './cut';
+import { DEFAULT_FEATURES, cleanFeatures, type Brows, type FaceFeatures } from './features';
 import { sameLevels, type Applying, type Product, type Shampoo, type WashLevels } from './render/wash';
 
 export type { Applying, ColourMode, HairColour, Product, Shampoo, WashLevels };
@@ -20,13 +21,26 @@ export type CutTarget = Region | 'all';
 export const STAGES: readonly Stage[] = ['wash', 'colour', 'cut', 'style'];
 export const VIEWS: readonly View[] = ['front', 'left', 'back', 'right'];
 
-export interface CharacterDef {
+/** Who is in the chair: a name, colouring, face features (nose, brows, face shape, Adam's apple) and the seed that varies their hair. */
+export interface CharacterDef extends FaceFeatures {
   id: string;
   name: string;
   skin: number;
   eyes: number;
+  /** Their natural hair colour (the brows follow it; the dye is separate). */
   hair: string;
   seed: number;
+}
+
+/** A character from the parts that differ from Isla's; everything left out takes her value. */
+export function makeCharacter(c: Pick<CharacterDef, 'id' | 'name'> & Partial<Omit<CharacterDef, 'id' | 'name' | 'brows'>> & { brows?: Partial<Brows> }): CharacterDef {
+  const f = cleanFeatures({
+    nose: c.nose ?? DEFAULT_FEATURES.nose,
+    adamsApple: c.adamsApple ?? DEFAULT_FEATURES.adamsApple,
+    brows: { ...DEFAULT_FEATURES.brows, ...c.brows },
+    face: c.face ?? DEFAULT_FEATURES.face,
+  });
+  return { ...f, id: c.id, name: c.name, skin: c.skin ?? 0xffd9b8, eyes: c.eyes ?? 0x3a86ff, hair: c.hair ?? '#ffd84a', seed: c.seed ?? 6 };
 }
 
 export interface SalonState {
@@ -58,14 +72,7 @@ export interface SalonState {
   epoch: number;
 }
 
-export const ISLA: CharacterDef = {
-  id: 'isla',
-  name: 'Isla',
-  skin: 0xffd9b8,
-  eyes: 0x3a86ff,
-  hair: '#ffd84a',
-  seed: 6,
-};
+export const ISLA: CharacterDef = makeCharacter({ id: 'isla', name: 'Isla', skin: 0xffd9b8, eyes: 0x3a86ff, hair: '#ffd84a', seed: 6 });
 
 /** How clean her hair is to begin with, and again whenever she comes back to the sink. */
 const CLEAN_START = 0.4;
@@ -293,6 +300,11 @@ export function setStyleProduct(product: 'none' | 'flat'): void {
  */
 export function resetSalon(): void {
   salon.update((s) => ({ ...initialState(s.character), stage: s.stage, view: s.view, audio: s.audio, epoch: s.epoch + 1 }));
+}
+
+/** Change how the character in the chair looks (features, colouring, name) without touching their hair work. Used by the test pages for now; the Character stage comes later. */
+export function setCharacterLook(patch: Partial<Omit<CharacterDef, 'brows'>> & { brows?: Partial<Brows> }): void {
+  salon.update((s) => ({ ...s, character: makeCharacter({ ...s.character, ...patch, brows: { ...s.character.brows, ...patch.brows } }) }));
 }
 
 export function toggleMute(): void {

@@ -7,6 +7,7 @@ import { playBoing, playPat, playSnip, playSparkle, playSqueak, playSpray, playS
 import { REGION_AZIMUTH, SWIPES_TO_CUT, movingRegions, positionsOf, regionOfAzimuth, toolFor, type CutPlan } from '../cut';
 import { drawBackdrop } from './backdrop';
 import { drawCharacter } from './character';
+import { browLift } from '../features';
 import { COLOUR_FADE_SECONDS, ColourFade } from './colourFade';
 import { CALM, isCalm, moodTarget, sameMood, stepMood, type Mood } from './complexion';
 import { HEAD, project, silhouetteHalfWidth } from './geometry';
@@ -517,17 +518,20 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
     return bands ? bands[bands.length - 1].colour : 0xffd84a;
   }
 
+  /** How much higher than Isla's this character's brows reach, which the hair and lather keep clear of. */
+  const browRoom = (): number => (state ? browLift(state.character.brows) : 0);
+
   function showCut(positions: CutLengths, seed: number): void {
     if (shown) gsap.killTweensOf(shown);
     const at = positions as Positions;
     shown = { front: at.front, left: at.left, right: at.right, back: at.back };
-    locks = buildLocks(shown, seed, look);
-    bubbles = foamLayout(shown, seed);
+    locks = buildLocks(shown, seed, look, browRoom());
+    bubbles = foamLayout(shown, seed, browRoom());
   }
 
   /** Rebuild the hair for the style as it is right now, part-way through a change. */
   function restyle(): void {
-    if (shown && state) locks = buildLocks(shown, state.character.seed, look);
+    if (shown && state) locks = buildLocks(shown, state.character.seed, look, browRoom());
   }
 
   function playSparks(list: Spark[]): void {
@@ -649,8 +653,8 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
           ease: 'sine.inOut',
           onUpdate: () => {
             if (!state) return;
-            locks = buildLocks(target, state.character.seed, look);
-            bubbles = foamLayout(target, state.character.seed);
+            locks = buildLocks(target, state.character.seed, look, browRoom());
+            bubbles = foamLayout(target, state.character.seed, browRoom());
             draw();
           },
         });
@@ -831,7 +835,7 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
     applyLook(next);
 
     // A different character gets a fresh head of hair at once; a change of cut goes through the scissors.
-    const seedKey = String(next.character.seed);
+    const seedKey = `${next.character.seed}:${browLift(next.character.brows)}`;
     if (seedKey !== locksKey) {
       finishCut();
       showCut(hairPosition(next), next.character.seed);

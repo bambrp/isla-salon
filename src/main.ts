@@ -13,6 +13,7 @@ import {
   setLength,
   setStage,
   setStyleProduct,
+  setCharacterLook,
 } from './state';
 import './app.css';
 
@@ -34,6 +35,7 @@ if (new URLSearchParams(window.location.search).has('debug')) {
     setLength,
     setCurl,
     setStyleProduct,
+    setCharacterLook,
     gsap,
   };
 }
