@@ -179,8 +179,8 @@ describe('swatches', () => {
     expect(HAIR_SWATCHES.some((s) => s.hex === '#ffd84a')).toBe(true);
   });
 
-  it('fills 11 slots, leaving one cell in two rows of six for the mix-your-own button', () => {
-    expect(HAIR_SWATCHES).toHaveLength(11);
+  it('fills 17 slots, leaving one cell in three rows of six for the mix-your-own button', () => {
+    expect(HAIR_SWATCHES).toHaveLength(17);
   });
 });
 

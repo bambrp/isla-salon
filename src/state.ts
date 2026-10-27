@@ -1,46 +1,34 @@
 import { writable } from 'svelte/store';
 import { withColour, withMode, type ColourMode, type HairColour } from './render/colour';
 import { SWIPES_TO_CUT, lengthsOf, planPosition, positionOf, positionsOf, type CutPlan, type Positions } from './cut';
-import { DEFAULT_FEATURES, cleanFeatures, type Brows, type FaceFeatures } from './features';
+import { type Brows } from './features';
+import { CAST, ISLA, makeCharacter, startingHair, type CharacterDef } from './cast';
 import { sameLevels, type Applying, type Product, type Shampoo, type WashLevels } from './render/wash';
 
-export type { Applying, ColourMode, HairColour, Product, Shampoo, WashLevels };
+export type { Applying, ColourMode, HairColour, Product, Shampoo, WashLevels, CharacterDef };
+export { ISLA, makeCharacter };
 
 /**
  * Left and right in the colour chooser are as the player sees Isla from the front: Left is the screen-left
  * half of the picture. Every left and right in the game is the player's: cutting regions and the 'left' and
  * 'right' views follow the same rule, so the 'left' view shows the Left region face on (see cut.ts and geometry.ts).
  */
-export type Stage = 'wash' | 'colour' | 'cut' | 'style';
+export type Stage = 'character' | 'wash' | 'colour' | 'cut' | 'style' | 'photo';
 export type View = 'front' | 'left' | 'back' | 'right';
 export type Length = 'back' | 'shoulders' | 'bob' | 'short1' | 'short2' | 'short3' | 'trimmed' | 'shaved';
 export type Region = 'front' | 'left' | 'right' | 'back';
 /** What the cutting stage is about to change: one region, or the whole head. */
 export type CutTarget = Region | 'all';
 
-export const STAGES: readonly Stage[] = ['wash', 'colour', 'cut', 'style'];
+/** The six stages in the order the selector shows them (two rows of three). */
+export const STAGES: readonly Stage[] = ['character', 'wash', 'colour', 'cut', 'style', 'photo'];
 export const VIEWS: readonly View[] = ['front', 'left', 'back', 'right'];
 
-/** Who is in the chair: a name, colouring, face features (nose, brows, face shape, Adam's apple) and the seed that varies their hair. */
-export interface CharacterDef extends FaceFeatures {
-  id: string;
-  name: string;
-  skin: number;
-  eyes: number;
-  /** Their natural hair colour (the brows follow it; the dye is separate). */
-  hair: string;
-  seed: number;
-}
-
-/** A character from the parts that differ from Isla's; everything left out takes her value. */
-export function makeCharacter(c: Pick<CharacterDef, 'id' | 'name'> & Partial<Omit<CharacterDef, 'id' | 'name' | 'brows'>> & { brows?: Partial<Brows> }): CharacterDef {
-  const f = cleanFeatures({
-    nose: c.nose ?? DEFAULT_FEATURES.nose,
-    adamsApple: c.adamsApple ?? DEFAULT_FEATURES.adamsApple,
-    brows: { ...DEFAULT_FEATURES.brows, ...c.brows },
-    face: c.face ?? DEFAULT_FEATURES.face,
-  });
-  return { ...f, id: c.id, name: c.name, skin: c.skin ?? 0xffd9b8, eyes: c.eyes ?? 0x3a86ff, hair: c.hair ?? '#ffd84a', seed: c.seed ?? 6 };
+/** A character waiting their turn: who they are (with any changes made to them) and their hair work so far. */
+export interface SavedCharacter {
+  character: CharacterDef;
+  hair: SalonState['hair'];
+  cut: CutPlan | null;
 }
 
 export interface SalonState {
@@ -68,35 +56,44 @@ export interface SalonState {
   /** The washing controls: water settings, the product on the shelf that is selected, what the water button is doing, and how many times product has been squirted on. */
   wash: { temperature: number; pressure: number; product: Product; squirts: number };
   audio: { muted: boolean };
+  /**
+   * The other characters' work while someone else is in the chair: each keeps their own look, cut, dye, style and shine
+   * for as long as the game is open. The character in the chair is in `character`, `hair` and `cut`, not here.
+   */
+  saved: Record<string, SavedCharacter>;
   /** Goes up by one each time the salon is reset, so the scene knows to change at once instead of animating. */
   epoch: number;
 }
 
-export const ISLA: CharacterDef = makeCharacter({ id: 'isla', name: 'Isla', skin: 0xffd9b8, eyes: 0x3a86ff, hair: '#ffd84a', seed: 6 });
-
 /** How clean her hair is to begin with, and again whenever she comes back to the sink. */
 const CLEAN_START = 0.4;
+
+/** A character's hair as it is before anyone has touched it: their own starting cut, curl and style, dyed their natural colour, dry and shineless. */
+export function freshHair(character: CharacterDef): SalonState['hair'] {
+  const start = startingHair(character.id);
+  return {
+    wetness: 0,
+    cleanliness: CLEAN_START,
+    conditioned: 0,
+    shine: false,
+    foam: 0,
+    cream: 0,
+    colour: { mode: 'single', a: character.hair, b: character.hair },
+    length: start.length,
+    curl: start.curl,
+    product: start.product,
+  };
+}
 
 export function initialState(character: CharacterDef = ISLA): SalonState {
   return {
     character,
-    stage: 'wash',
+    stage: 'character',
     view: 'front',
     cutTarget: 'all',
     cut: null,
-    hair: {
-      wetness: 0,
-      cleanliness: CLEAN_START,
-      conditioned: 0,
-      shine: false,
-      foam: 0,
-      cream: 0,
-      colour: { mode: 'single', a: character.hair, b: character.hair },
-      // Isla's starting cut: a short fringe at the front, shoulder-length everywhere else.
-      length: { front: 'short3', left: 'shoulders', right: 'shoulders', back: 'shoulders' },
-      curl: 0,
-      product: 'none',
-    },
+    hair: freshHair(character),
+    saved: {},
     wash: { temperature: 0.5, pressure: 0, product: 'mint', squirts: 0 },
     audio: { muted: false },
     epoch: 0,
@@ -299,7 +296,43 @@ export function setStyleProduct(product: 'none' | 'flat'): void {
  * you are on, the view and the sound setting stay as they are.
  */
 export function resetSalon(): void {
-  salon.update((s) => ({ ...initialState(s.character), stage: s.stage, view: s.view, audio: s.audio, epoch: s.epoch + 1 }));
+  salon.update((s) => ({
+    ...initialState(s.character),
+    stage: s.stage,
+    view: s.view,
+    audio: s.audio,
+    saved: s.saved,
+    epoch: s.epoch + 1,
+  }));
+}
+
+/**
+ * Put someone else in the chair. The person leaving keeps everything they have had done (cut, dye, style, shine, a cut
+ * waiting for swipes); the person arriving comes back as they were left, or fresh from their own starting look. The
+ * sink's tap is turned off and the washing cleared, as when leaving the sink, and the scene changes at once.
+ */
+export function switchCharacter(id: string): void {
+  salon.update((s) => {
+    if (id === s.character.id) return s;
+    const member = CAST.find((m) => m.character.id === id);
+    const waiting = s.saved[id];
+    if (!member && !waiting) return s;
+    const arriving = waiting ?? { character: member!.character, hair: freshHair(member!.character), cut: null };
+    const rest = { ...s.saved };
+    delete rest[id];
+    const dry = { ...s.hair, wetness: 0, foam: 0, cream: 0, cleanliness: CLEAN_START, conditioned: 0 };
+    rest[s.character.id] = { character: s.character, hair: dry, cut: s.cut };
+    return {
+      ...s,
+      character: arriving.character,
+      hair: arriving.hair,
+      cut: arriving.cut,
+      cutTarget: 'all',
+      saved: rest,
+      wash: { ...s.wash, pressure: 0 },
+      epoch: s.epoch + 1,
+    };
+  });
 }
 
 /** Change how the character in the chair looks (features, colouring, name) without touching their hair work. Used by the test pages for now; the Character stage comes later. */

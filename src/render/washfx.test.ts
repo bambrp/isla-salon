@@ -132,7 +132,7 @@ describe('the sink scene', () => {
 });
 
 describe('the pressure tap in the store', () => {
-  beforeEach(() => salon.set(initialState()));
+  beforeEach(() => salon.set({ ...initialState(), stage: 'wash' }));
 
   it('starts off, so no water runs until the tap is turned on', () => {
     expect(get(salon).wash.pressure).toBe(0);

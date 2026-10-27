@@ -19,11 +19,41 @@
   import { photoName, savePhoto } from './photo';
 
   const LABELS: Record<Stage, { text: string; icon: string }> = {
+    character: { text: 'Character', icon: '🧑' },
     wash: { text: 'Wash', icon: '🚿' },
     colour: { text: 'Colour', icon: '🎨' },
     cut: { text: 'Cut', icon: '✂️' },
     style: { text: 'Style', icon: '💇' },
+    photo: { text: 'Photo booth', icon: '📷' },
   };
+
+  // Only one of the stage selector (top) and the controls (bottom) is on screen at a time. Choosing a stage closes the
+  // selector and opens that stage's controls; each panel's handle brings the other one back.
+  let showStages = true;
+  function choose(stage: Stage): void {
+    setStage(stage);
+    showStages = false;
+  }
+  // A handle can be tapped or pulled: down on the selector's handle, up on the controls' handle.
+  let pulling: { id: number; y: number } | undefined;
+  function pullStart(e: PointerEvent): void {
+    pulling = { id: e.pointerId, y: e.clientY };
+    try {
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    } catch {
+      /* capture is a nicety */
+    }
+  }
+  function pullMove(e: PointerEvent, dir: 1 | -1): void {
+    if (!pulling || pulling.id !== e.pointerId) return;
+    if ((e.clientY - pulling.y) * dir > 24) {
+      pulling = undefined;
+      showStages = dir === -1;
+    }
+  }
+  function pullEnd(): void {
+    pulling = undefined;
+  }
 
   let host: HTMLDivElement;
   let scene: SceneHandle | undefined;
@@ -198,7 +228,7 @@
   function startOver(): void {
     if (!confirmReset) {
       confirmReset = true;
-      say('Tap start over again to put Isla back as she was.', 4);
+      say(`Tap start over again to put ${$salon.character.name} back as they were.`, 4);
       clearTimeout(confirmTimer);
       confirmTimer = setTimeout(() => (confirmReset = false), 4000);
       return;
@@ -206,7 +236,7 @@
     clearTimeout(confirmTimer);
     confirmReset = false;
     resetSalon();
-    say('Isla is back as she was.');
+    say(`${$salon.character.name} is back as they were.`);
   }
 
   const viewLabel: Record<string, string> = {
@@ -219,19 +249,38 @@
 
 <main class="app">
   <h1 class="sr-only">Isla's Salon</h1>
-  <nav class="stages" aria-label="Salon stages">
-    {#each STAGES as stage}
+  <div class="dock top" class:open={showStages}>
+    <div class="slide" inert={!showStages}>
+      <div class="inner">
+        <nav class="stages" aria-label="Salon stages">
+          {#each STAGES as stage}
+            <button
+              class="stage-tab"
+              class:active={$salon.stage === stage}
+              aria-pressed={$salon.stage === stage}
+              on:click={() => choose(stage)}
+            >
+              <span class="icon" aria-hidden="true">{LABELS[stage].icon}</span>
+              <span>{LABELS[stage].text}</span>
+            </button>
+          {/each}
+        </nav>
+      </div>
+    </div>
+    {#if showStages}
       <button
-        class="stage-tab"
-        class:active={$salon.stage === stage}
-        aria-pressed={$salon.stage === stage}
-        on:click={() => setStage(stage)}
+        class="handle"
+        aria-label="Show the controls"
+        on:click={() => (showStages = false)}
+        on:pointerdown={pullStart}
+        on:pointermove={(e) => pullMove(e, 1)}
+        on:pointerup={pullEnd}
+        on:pointercancel={pullEnd}
       >
-        <span class="icon" aria-hidden="true">{LABELS[stage].icon}</span>
-        <span>{LABELS[stage].text}</span>
+        <span aria-hidden="true">▼ Controls</span>
       </button>
-    {/each}
-  </nav>
+    {/if}
+  </div>
 
   <section class="stage-area">
     <!-- Tapping the picture is a shortcut for the region buttons, which are the accessible way to choose. -->
@@ -245,7 +294,7 @@
       on:pointerup={releaseHost}
       on:pointercancel={releaseHost}
       role="img"
-      aria-label="Isla, seen from the {viewLabel[$salon.view]}"
+      aria-label="{$salon.character.name}, seen from the {viewLabel[$salon.view]}"
     ></div>
 
     {#if cannotDraw}
@@ -258,9 +307,6 @@
     <div class="tools">
       <button class="round" on:click={rotateView} aria-label="Rotate view. Currently showing the {viewLabel[$salon.view]}">
         <span aria-hidden="true">🔄</span>
-      </button>
-      <button class="round" on:click={takePhoto} disabled={!scene || busy} aria-label="Take a photo">
-        <span aria-hidden="true">📷</span>
       </button>
       <button
         class="round"
@@ -284,7 +330,28 @@
     <p class="toast" class:show={message !== ''} role="status" aria-live="polite">{message}</p>
   </section>
 
-  <StagePanel />
+  <div class="dock bottom" class:open={!showStages}>
+    {#if !showStages}
+      <button
+        class="handle"
+        aria-label="Choose a stage"
+        on:click={() => (showStages = true)}
+        on:pointerdown={pullStart}
+        on:pointermove={(e) => pullMove(e, -1)}
+        on:pointerup={pullEnd}
+        on:pointercancel={pullEnd}
+      >
+        <span aria-hidden="true">▲ Stages</span>
+      </button>
+    {/if}
+    <div class="slide" inert={showStages}>
+      <div class="inner">
+        <StagePanel {busy} ready={!!scene} onPhoto={takePhoto} />
+      </div>
+    </div>
+  </div>
+
+  
 </main>
 
 <style>
@@ -310,11 +377,72 @@
       env(safe-area-inset-left);
   }
 
+  /* The stage selector (top) and the controls (bottom) each slide shut, so only one is ever on screen. */
+  .dock {
+    display: grid;
+    min-height: 0;
+  }
+
+  .slide {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.3s ease;
+    min-height: 0;
+  }
+
+  .dock.open > .slide {
+    grid-template-rows: 1fr;
+  }
+
+  .inner {
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .dock.top .inner {
+    padding: 0 10px;
+  }
+
+  .dock.top.open .inner {
+    padding-top: 10px;
+  }
+
+  .dock.bottom .inner {
+    padding: 0 10px;
+    height: 100%;
+  }
+
+  .dock.bottom.open .inner {
+    padding-bottom: 10px;
+  }
+
+  /* The panel keeps one height for every stage, so the picture does not change size as you switch. */
+  .dock.bottom .inner > :global(.panel) {
+    height: min(var(--panel-height, 20rem), 50dvh);
+  }
+
+  /* The pull handle: a tab on the edge of the open panel that faces the picture. */
+  .handle {
+    justify-self: center;
+    min-width: 120px;
+    min-height: 28px;
+    margin: 4px 0;
+    padding: 2px 16px;
+    font-weight: 800;
+    font-size: 0.75rem;
+    background: var(--cream);
+    border: var(--outline);
+    border-radius: 999px;
+    box-shadow: 0 2px 0 var(--ink);
+    cursor: grab;
+    touch-action: none;
+  }
+
   .stages {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 8px;
-    padding: 10px;
+    padding: 0 0 6px;
   }
 
   .stage-tab {
@@ -461,17 +589,38 @@
     cursor: not-allowed;
   }
 
+  /* Landscape phones put the controls beside the picture, and they slide in from the side instead. */
   @media (orientation: landscape) and (max-height: 520px) {
     .app {
-      grid-template-columns: 1fr minmax(220px, 34%);
+      grid-template-columns: 1fr auto;
       grid-template-rows: auto 1fr;
     }
-    .stages {
+    .dock.top {
       grid-column: 1 / -1;
     }
     .stage-area {
       grid-column: 1;
       margin-bottom: 10px;
+    }
+    .dock.bottom {
+      grid-column: 2;
+      grid-row: 2;
+      width: auto;
+      min-width: 0;
+      grid-template-rows: auto 1fr;
+    }
+    .dock.bottom .slide {
+      grid-template-rows: 1fr;
+    }
+    .dock.bottom .inner {
+      padding: 0 10px 10px 0;
+      width: min(34vw, 300px);
+    }
+    .dock.bottom .inner > :global(.panel) {
+      height: 100%;
+    }
+    .dock.bottom:not(.open) {
+      display: none;
     }
   }
 </style>

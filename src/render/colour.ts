@@ -189,15 +189,21 @@ export function colourDistance(x: number, y: number): number {
 // Palette
 // ---------------------------------------------------------------------------------------------------
 
-/** The quick-pick colours: a few natural shades, then the vibrant ones the cartoon style loves. */
+/** The quick-pick colours: natural shades (so every kind of character has a natural colour), then the vibrant ones the cartoon style loves. */
 export const HAIR_SWATCHES: ReadonlyArray<{ name: string; hex: string }> = [
   { name: 'Sunny blonde', hex: '#ffd84a' },
   { name: 'Platinum', hex: '#f3ecc8' },
   { name: 'Ginger', hex: '#ff8a2b' },
   { name: 'Red', hex: '#ff3b4e' },
   { name: 'Auburn', hex: '#b5441f' },
+  { name: 'Strawberry', hex: '#e8a07a' },
+  { name: 'Honey', hex: '#c9924a' },
+  { name: 'Chestnut', hex: '#9a5b2e' },
   { name: 'Brown', hex: '#7a4a2a' },
+  { name: 'Dark brown', hex: '#4b2e1c' },
   { name: 'Black', hex: '#3b3050' },
+  { name: 'Grey', hex: '#9aa0aa' },
+  { name: 'Silver', hex: '#d8dce2' },
   { name: 'Pink', hex: '#ff6fb1' },
   { name: 'Purple', hex: '#9b5de5' },
   { name: 'Blue', hex: '#3a86ff' },

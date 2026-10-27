@@ -39,11 +39,11 @@ describe('backdrop scene', () => {
 });
 
 describe('initial state', () => {
-  it('starts as Isla, front view, washing stage', () => {
+  it('starts as Isla, front view, in the character stage', () => {
     const s = initialState();
     expect(s.character.name).toBe('Isla');
     expect(s.view).toBe('front');
-    expect(s.stage).toBe('wash');
+    expect(s.stage).toBe('character');
     expect(s.hair.colour.mode).toBe('single');
   });
 });
@@ -149,6 +149,7 @@ describe('shine', () => {
 describe('leaving the sink', () => {
   it('clears the washing but keeps the shine', async () => {
     const { setShine, setStage, commitWash } = await import('./state');
+    salon.set({ ...initialState(), stage: 'wash' });
     commitWash({ wet: 1, foam: 0.5, cream: 0.4, clean: 1, conditioned: 0.9 });
     setShine(true);
     setStage('cut');
