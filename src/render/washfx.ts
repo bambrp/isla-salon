@@ -321,24 +321,28 @@ export class WashFx {
   // Drawing
   // -------------------------------------------------------------------------------------------------
 
-  /** Everything that sits over the hair, and the moving parts of the sink. Cleared and redrawn each frame. */
-  draw(g: Graphics, c: FxContext): void {
+  /**
+   * Everything that sits over the hair is drawn on `g`, which moves with her (her breathing, her shiver): lather, drips and
+   * splashes, steam, sparkle and the squirt. The fixtures of the sink (the sprayer, its water, the dial lever and the ring
+   * round the chosen bottle) are drawn on `fixed`, which never moves. Both are cleared and redrawn each frame.
+   */
+  draw(g: Graphics, c: FxContext, fixed: Graphics): void {
     g.clear();
-    drawSprayer(g, this.pose());
+    fixed.clear();
+    drawSprayer(fixed, this.pose());
     const scent = isShampoo(c.product) ? (c.product as keyof typeof SCENT) : 'mint';
     // Lather keeps the colour of the shampoo it came from, so the last shampoo used decides it.
     drawFoam(g, c.bubbles, c.levels.foam, c.phi, this.lastScent(scent, c), this.time);
 
     const look = waterLook(c.temperature);
     const water = c.applying === 'water';
-    const fade = this.ramp(water);
-    this.tint(g, look, fade);
-    if (water) this.stream(g, c, look.tint);
+    this.ramp(water);
+    if (water) this.stream(fixed, c, look.tint);
     this.particles(g);
     if (c.shine) this.sparkle(g, c.phi);
 
     if (c.blob) this.blob(g, c.blob);
-    this.sinkControls(g, c);
+    this.sinkControls(fixed, c);
   }
 
   /**
@@ -379,14 +383,6 @@ export class WashFx {
   private lastScent(selected: keyof typeof SCENT, c: FxContext): keyof typeof SCENT {
     if (c.applying === 'product' && isShampoo(c.product)) this.scentMemory = selected;
     return this.scentMemory;
-  }
-
-  /** A faint wash of icy blue or warm pink over the head while the water runs. */
-  private tint(g: Graphics, look: ReturnType<typeof waterLook>, fade: number): void {
-    const cold = look.chill * fade;
-    const hot = look.steam * fade;
-    if (cold > 0.02) g.ellipse(HEAD.cx, HEAD.cy + 10, 120, 150).fill({ color: 0x7fc4ff, alpha: 0.16 * cold });
-    if (hot > 0.02) g.ellipse(HEAD.cx, HEAD.cy + 10, 120, 150).fill({ color: 0xff8f7a, alpha: 0.12 * hot });
   }
 
   /** The water from the sprayer: streaks sliding down a fan, more and faster with pressure. */

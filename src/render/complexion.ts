@@ -63,3 +63,13 @@ export function tintedSkin(skin: number, tone: number): number {
   if (t === 0) return skin;
   return t > 0 ? mix(skin, PINK, 0.55 * t) : mix(skin, BLUE, 0.6 * -t);
 }
+
+/**
+ * How far (design pixels, sideways) the character shivers at a moment in the cold water: nothing unless the water is cold
+ * (below the middle of the dial), growing to a little over a pixel at the coldest. Only she and what sits on her hair move
+ * by this; the sink's fixtures (dial, tap, shower, water, bottle ring) and the backdrop never do.
+ */
+export function shiverOffset(temperature: number, seconds: number): number {
+  if (!(temperature < 0.5)) return 0;
+  return clamp(Math.sin(seconds * 55) * 1.3 * (1 - temperature * 2), -1.3, 1.3);
+}

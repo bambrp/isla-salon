@@ -131,3 +131,33 @@ describe('drawing every feature', () => {
     expect(bad).toBe(0);
   }, 120000);
 });
+
+describe('hot and cold colouring', () => {
+  it('only ever changes skin colours: never whites, ink, irises, blush or brows', async () => {
+    const { PALETTE, INK } = await import('./render/style');
+    const { browColour } = await import('./render/character');
+    const fills = (tone: number): Array<[number, number]> => {
+      const state = initialState(makeCharacter({ id: 't', name: 'T', adamsApple: true }));
+      const g = new Graphics();
+      drawCharacter(g, state, 0.4, buildLocks({ front: 4, left: 4, right: 4, back: 4 }, 6), hairPaint(state.hair.colour) as never, 0, { tone, annoyed: 0, clench: 0 });
+      const out: Array<[number, number]> = [];
+      for (const ins of (g as unknown as { context: { instructions: Array<{ action: string; data: { style: { color: number; alpha: number } } }> } }).context.instructions)
+        if (ins.action === 'fill' || ins.action === 'stroke') out.push([ins.data.style.color, ins.data.style.alpha]);
+      return out;
+    };
+    const calm = fills(0);
+    const protectedColours = new Set<number>([0xffffff, INK, PALETTE.blush, ISLA.eyes, browColour(ISLA.hair)]);
+    for (const tone of [-1, -0.5, 0.5, 1]) {
+      const warm = fills(tone);
+      expect(warm).toHaveLength(calm.length);
+      let changed = 0;
+      for (let i = 0; i < calm.length; i++) {
+        if (calm[i][0] === warm[i][0] && calm[i][1] === warm[i][1]) continue;
+        changed++;
+        expect(protectedColours.has(calm[i][0]), `fill ${i} colour ${calm[i][0].toString(16)} changed at tone ${tone}`).toBe(false);
+        expect(calm[i][1]).toBe(warm[i][1]);
+      }
+      expect(changed).toBeGreaterThan(0);
+    }
+  });
+});

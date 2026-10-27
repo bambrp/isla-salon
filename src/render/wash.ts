@@ -54,15 +54,19 @@ export function isShampoo(p: Product): p is Shampoo {
 const SOAK_RATE = 0.9;
 const LATHER_RATE = 0.34;
 const CLEAN_RATE = 0.25;
-const RINSE_FOAM = 0.2;
-const RINSE_CREAM = 0.14;
+/** A full lather or coat of conditioner rinses off in 10 seconds at the lowest setting (see rinseSpeed for full pressure). */
+const RINSE_FOAM = 0.1;
+const RINSE_CREAM = 0.1;
+/** The rinse speed multiple at full pressure: a full rinse takes 3 seconds there, against 10 at the lowest setting. */
+export const RINSE_FASTEST = 10 / 3;
 
 /**
  * How fast water rinses lather and conditioner off, as a multiple of the gentlest flow: 1 at the lowest setting
- * above off, rising evenly to 3 at full pressure, so the strongest water rinses three times faster.
+ * above off, rising evenly to 10/3 at full pressure, so a full rinse takes 10 seconds at the lowest setting and
+ * 3 seconds at full pressure.
  */
 export function rinseSpeed(pressure: number): number {
-  return 1 + 2 * clamp(pressure, 0, 1);
+  return 1 + (RINSE_FASTEST - 1) * clamp(pressure, 0, 1);
 }
 
 /** Advance the levels by dt seconds of whatever is being applied. Returns a new object; the input is untouched. */

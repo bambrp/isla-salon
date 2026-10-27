@@ -88,26 +88,49 @@ describe('washing the hair', () => {
     const soft = run(foamy, 1, input({ applying: 'water', pressure: 0 }));
     const hard = run(foamy, 1, input({ applying: 'water', pressure: 1 }));
     expect(hard.foam).toBeLessThan(soft.foam);
-    expect(run(foamy, 4, input({ applying: 'water', pressure: 0.5 })).foam).toBe(0);
+    expect(run(foamy, 6, input({ applying: 'water', pressure: 0.5 })).foam).toBe(0);
   });
 
-  it('rinses three times faster at full pressure than at the lowest setting, both for lather and for conditioner', () => {
+  it('rinses a full lather in 10 seconds at the lowest setting and 3 seconds at full pressure, for lather and conditioner alike', () => {
+    const wet0: WashLevels = { ...DRY, wet: 1, foam: 1, cream: 1 };
+    const seconds = (pressure: number): { foam: number; cream: number } => {
+      let l = wet0;
+      let foam = -1;
+      let cream = -1;
+      for (let i = 1; i <= 2000; i++) {
+        l = stepWash(l, 0.01, input({ applying: 'water', pressure }));
+        if (foam < 0 && l.foam <= 0) foam = i * 0.01;
+        if (cream < 0 && l.cream <= 0) cream = i * 0.01;
+      }
+      return { foam, cream };
+    };
+    for (const p of [0.001, 1]) {
+      const t = seconds(p);
+      const want = p === 1 ? 3 : 10;
+      expect(t.foam).toBeGreaterThan(want - 0.05);
+      expect(t.foam).toBeLessThan(want + 0.1);
+      expect(t.cream).toBeGreaterThan(want - 0.05);
+      expect(t.cream).toBeLessThan(want + 0.1);
+    }
+  });
+
+  it('rinses 10/3 times faster at full pressure than at the lowest setting', () => {
     expect(rinseSpeed(0)).toBe(1);
-    expect(rinseSpeed(1)).toBe(3);
-    expect(rinseSpeed(0.5)).toBe(2);
+    expect(rinseSpeed(1)).toBeCloseTo(10 / 3);
+    expect(rinseSpeed(0.5)).toBeCloseTo(13 / 6);
     const wet: WashLevels = { ...DRY, wet: 1, foam: 1, cream: 1 };
     const low = stepWash(wet, 0.1, input({ applying: 'water', pressure: 0.001 }));
     const full = stepWash(wet, 0.1, input({ applying: 'water', pressure: 1 }));
-    expect((1 - full.foam) / (1 - low.foam)).toBeCloseTo(3, 1);
-    expect((1 - full.cream) / (1 - low.cream)).toBeCloseTo(3, 1);
+    expect((1 - full.foam) / (1 - low.foam)).toBeCloseTo(10 / 3, 1);
+    expect((1 - full.cream) / (1 - low.cream)).toBeCloseTo(10 / 3, 1);
   });
 
   it('still rinses steadily at the lowest setting', () => {
     const wet: WashLevels = { ...DRY, wet: 1, foam: 1, cream: 1 };
-    const l = run(wet, 8, input({ applying: 'water', pressure: 0.001 }));
+    const l = run(wet, 10.5, input({ applying: 'water', pressure: 0.001 }));
     expect(l.foam).toBe(0);
     expect(l.cream).toBe(0);
-    expect(run(wet, 1, input({ applying: 'water', pressure: 0.001 })).foam).toBeGreaterThan(0.5);
+    expect(run(wet, 5, input({ applying: 'water', pressure: 0.001 })).foam).toBeGreaterThan(0.4);
   });
 
   it('takes longer to rinse the gentler the water', () => {

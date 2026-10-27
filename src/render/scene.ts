@@ -9,7 +9,7 @@ import { drawBackdrop } from './backdrop';
 import { drawCharacter } from './character';
 import { browLift } from '../features';
 import { COLOUR_FADE_SECONDS, ColourFade } from './colourFade';
-import { CALM, isCalm, moodTarget, sameMood, stepMood, type Mood } from './complexion';
+import { CALM, isCalm, moodTarget, sameMood, shiverOffset, stepMood, type Mood } from './complexion';
 import { HEAD, project, silhouetteHalfWidth } from './geometry';
 import { buildLocks, reachAt, splitLocks, type CutLengths, type Lock, type Positions } from './hair';
 import { NO_LOOK, lookOf, sameLook, type Look } from './look';
@@ -141,7 +141,9 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
   const character = new Graphics();
   const fx = new Graphics();
   const washG = new Graphics();
-  world.addChild(backdrop, slide, character, washG, fx);
+  // The sink's fixtures (sprayer, water, dial and bottle ring) stay still while she shivers or breathes.
+  const fixedG = new Graphics();
+  world.addChild(backdrop, slide, character, washG, fixedG, fx);
   app.stage.addChild(world);
 
   let state: SalonState | undefined;
@@ -375,15 +377,16 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
     const ctx = fxContext();
     if (!ctx || !state || state.stage !== 'wash') {
       washG.clear();
+      fixedG.clear();
       character.x = washG.x = 0;
       if (state && shine && !posing) washFx.drawShine(washG, turn.phi);
       return;
     }
     // Cold water makes her shiver.
     const cold = ctx.applying === 'water' && temperatureBand(ctx.temperature) === 'cold' && !prefersReducedMotion();
-    const shake = cold ? Math.sin(washFx.time * 55) * 1.3 * (1 - ctx.temperature * 2) : 0;
-    character.x = washG.x = Math.max(-1.3, Math.min(1.3, shake));
-    washFx.draw(washG, ctx);
+    // Only she and what sits on her hair move (character and washG); the fixtures are on fixedG and the backdrop, which stay put.
+    character.x = washG.x = cold ? shiverOffset(ctx.temperature, washFx.time) : 0;
+    washFx.draw(washG, ctx, fixedG);
   }
 
   /** What is happening to the hair now: the water, or product being rubbed in (swiping, with product on her), or nothing. */

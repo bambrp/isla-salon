@@ -115,3 +115,16 @@ describe('clenched teeth against the cold', () => {
     expect(isCalm(m)).toBe(true);
   });
 });
+
+describe('the shiver', () => {
+  it('is nothing unless the water is cold, and never more than 1.3 px', async () => {
+    const { shiverOffset } = await import('./complexion');
+    for (let t = 0; t < 2; t += 0.013) {
+      expect(shiverOffset(0.5, t)).toBe(0);
+      expect(shiverOffset(0.9, t)).toBe(0);
+      expect(Math.abs(shiverOffset(0, t))).toBeLessThanOrEqual(1.3);
+      expect(Math.abs(shiverOffset(0.1, t))).toBeLessThanOrEqual(1.04 + 1e-9);
+    }
+    expect(Math.max(...Array.from({ length: 200 }, (_, i) => Math.abs(shiverOffset(0, i * 0.0173))))).toBeGreaterThan(1);
+  });
+});

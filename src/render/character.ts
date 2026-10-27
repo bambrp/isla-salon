@@ -278,13 +278,14 @@ function drawMouth(g: Graphics, phi: number, annoyed: number, clench: number): v
   strokeRuns(g, pts, { width: 4, color: INK });
 }
 
-function drawCheeks(g: Graphics, phi: number, tone: number): void {
+/** The cheek blush. It is part of the face, not of the temperature: only the skin takes the pink or the blue. */
+function drawCheeks(g: Graphics, phi: number): void {
   for (const side of [-1, 1]) {
     const s = surface(side * 40 * DEG, 34, 0.5);
     const vis = facing(s, phi);
     if (vis < 0.15) continue;
     const { sx, sy } = project(s.x, s.y, s.z, phi);
-    g.ellipse(sx, sy, 11 * Math.pow(vis, 0.7), 7).fill({ color: PALETTE.blush, alpha: tone > 0 ? 0.55 + 0.4 * tone : 0.55 * (1 + 0.5 * tone) });
+    g.ellipse(sx, sy, 11 * Math.pow(vis, 0.7), 7).fill({ color: PALETTE.blush, alpha: 0.55 });
   }
 }
 
@@ -309,7 +310,7 @@ function drawNose(g: Graphics, skin: number, phi: number, size: number): void {
 
 function drawFace(g: Graphics, state: SalonState, skin: number, phi: number, blink: number, mood: Mood): void {
   const { eyes } = state.character;
-  drawCheeks(g, phi, mood.tone);
+  drawCheeks(g, phi);
   for (const side of [-1, 1] as const) {
     drawEye(g, side * 23 * DEG, phi, eyes, blink);
     // The brows keep to her natural hair colour, darkened, and never take the dye.
