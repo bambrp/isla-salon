@@ -91,14 +91,22 @@ export function cleanFeatures(f: FaceFeatures): FaceFeatures {
 // Nose
 // ---------------------------------------------------------------------------------------------------
 
-/** Scale of the nose drawing: 1 at the default size, 0.65 smallest, 1.35 largest. */
+/** The largest nose is 75 per cent bigger than the largest used to be (1.35). */
+export const NOSE_SCALE_MAX = 1.35 * 1.75;
+
+/**
+ * Scale of the nose drawing: 0.65 at the smallest, 1 in the middle (Isla's, so she is unchanged) and 1.35 x 1.75 at the
+ * largest. The two halves of the slider are different lengths: the small half is as it always was, the large half stretches.
+ */
 export function noseScale(nose: number): number {
-  return 0.65 + 0.7 * clamp01(nose);
+  const n = clamp01(nose);
+  return n <= 0.5 ? 0.65 + 0.7 * n : 1 + (NOSE_SCALE_MAX - 1) * (n - 0.5) * 2;
 }
 
-/** How far the nose stands out from the face, relative to the default (px of depth). */
+/** How far the nose stands out from the face, relative to the default (px of depth); the large end stands out 75 per cent further. */
 export function noseStandOut(nose: number): number {
-  return (clamp01(nose) - 0.5) * 10;
+  const n = clamp01(nose);
+  return n <= 0.5 ? (n - 0.5) * 10 : (n - 0.5) * 10 * 1.75;
 }
 
 // ---------------------------------------------------------------------------------------------------
@@ -111,8 +119,15 @@ const BROW_HEIGHT_OFFSET: Record<BrowHeight, number> = { high: -6, mid: 0, low: 
 /** The eye's top edge, and the gap the middle of a brow keeps above it. */
 const EYE_TOP_Y = -11.5;
 
+/** The thickest brow is 75 per cent thicker than the thickest used to be (5.5 px). */
+export const BROW_WIDTH_MAX = 5.5 * 1.75;
+
+/**
+ * Width of the brow line in px: 2.5 at the thinnest, 4 in the middle (Isla's, unchanged) and 5.5 x 1.75 at the thickest.
+ */
 export function browWidth(b: Brows): number {
-  return 2.5 + 3 * clamp01(b.thickness);
+  const t = clamp01(b.thickness);
+  return t <= 0.5 ? 2.5 + 3 * t : 4 + (BROW_WIDTH_MAX - 4) * (t - 0.5) * 2;
 }
 
 /** Azimuth (degrees) of the inner end of the brow; the brow spans 24 degrees from here. */

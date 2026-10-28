@@ -44,6 +44,7 @@ const skin = (id: string): number => SKIN_TONES.find((t) => t.id === id)!.hex;
 const eyes = (id: string): number => EYE_COLOURS.find((e) => e.id === id)!.hex;
 const all = (l: Length, front: Length = l): Record<Region, Length> => ({ front, left: l, right: l, back: l });
 
+/** Nose and brow values here were retuned when the largest nose and thickest brow grew 75 per cent, so each person looks as they did. */
 /** Isla first (exactly as she has always been), then eight more of different ages, genders and backgrounds. */
 export const CAST: readonly CastMember[] = [
   {
@@ -54,7 +55,7 @@ export const CAST: readonly CastMember[] = [
   {
     character: makeCharacter({
       id: 'amara', name: 'Amara', skin: skin('dark-brown'), eyes: eyes('brown'), hair: '#3b3050', seed: 11,
-      face: 'round', nose: 0.35, brows: { thickness: 0.6, arch: 0.35, height: 'mid', spacing: 0.5 },
+      face: 'round', nose: 0.35, brows: { thickness: 0.527, arch: 0.35, height: 'mid', spacing: 0.5 },
     }),
     age: 9,
     start: { length: all('shoulders'), curl: 3, product: 'none' },
@@ -62,7 +63,7 @@ export const CAST: readonly CastMember[] = [
   {
     character: makeCharacter({
       id: 'kenji', name: 'Kenji', skin: skin('pale'), eyes: eyes('brown'), hair: '#3b3050', seed: 17,
-      face: 'round', nose: 0.3, brows: { thickness: 0.55, arch: 0.2, height: 'low', spacing: 0.55 },
+      face: 'round', nose: 0.3, brows: { thickness: 0.513, arch: 0.2, height: 'low', spacing: 0.55 },
     }),
     age: 8,
     start: { length: all('short2', 'short3'), curl: 0, product: 'none' },
@@ -70,7 +71,7 @@ export const CAST: readonly CastMember[] = [
   {
     character: makeCharacter({
       id: 'mateo', name: 'Mateo', skin: skin('light-brown'), eyes: eyes('brown'), hair: '#4b2e1c', seed: 23,
-      face: 'square', nose: 0.6, adamsApple: true, brows: { thickness: 0.65, arch: 0.3, height: 'mid', spacing: 0.4 },
+      face: 'square', nose: 0.526, adamsApple: true, brows: { thickness: 0.54, arch: 0.3, height: 'mid', spacing: 0.4 },
     }),
     age: 14,
     start: { length: all('short1', 'short2'), curl: 1, product: 'none' },
@@ -78,7 +79,7 @@ export const CAST: readonly CastMember[] = [
   {
     character: makeCharacter({
       id: 'priya', name: 'Priya', skin: skin('mid-brown'), eyes: eyes('brown'), hair: '#3b3050', seed: 29,
-      face: 'oval', nose: 0.4, brows: { thickness: 0.6, arch: 0.7, height: 'high', spacing: 0.5 },
+      face: 'oval', nose: 0.4, brows: { thickness: 0.527, arch: 0.7, height: 'high', spacing: 0.5 },
     }),
     age: 16,
     start: { length: all('back'), curl: 0, product: 'none' },
@@ -86,7 +87,7 @@ export const CAST: readonly CastMember[] = [
   {
     character: makeCharacter({
       id: 'leo', name: 'Leo', skin: skin('fully-tanned'), eyes: eyes('green'), hair: '#7a4a2a', seed: 31,
-      face: 'triangular', nose: 0.6, adamsApple: true, brows: { thickness: 0.55, arch: 0.45, height: 'mid', spacing: 0.6 },
+      face: 'triangular', nose: 0.526, adamsApple: true, brows: { thickness: 0.513, arch: 0.45, height: 'mid', spacing: 0.6 },
     }),
     age: 27,
     start: { length: all('short2', 'short3'), curl: 2, product: 'none' },
@@ -94,7 +95,7 @@ export const CAST: readonly CastMember[] = [
   {
     character: makeCharacter({
       id: 'noor', name: 'Noor', skin: skin('light-brown'), eyes: eyes('hazel'), hair: '#4b2e1c', seed: 37,
-      face: 'triangular', nose: 0.45, brows: { thickness: 0.7, arch: 0.8, height: 'mid', spacing: 0.45 },
+      face: 'triangular', nose: 0.45, brows: { thickness: 0.553, arch: 0.8, height: 'mid', spacing: 0.45 },
     }),
     age: 35,
     start: { length: all('shoulders'), curl: 1, product: 'none' },
@@ -102,7 +103,7 @@ export const CAST: readonly CastMember[] = [
   {
     character: makeCharacter({
       id: 'tom', name: 'Tom', skin: skin('rosy'), eyes: eyes('green'), hair: '#ff8a2b', seed: 41,
-      face: 'square', nose: 0.7, adamsApple: true, brows: { thickness: 0.7, arch: 0.25, height: 'low', spacing: 0.35 },
+      face: 'square', nose: 0.551, adamsApple: true, brows: { thickness: 0.553, arch: 0.25, height: 'low', spacing: 0.35 },
     }),
     age: 42,
     start: { length: all('short3'), curl: 0, product: 'none' },

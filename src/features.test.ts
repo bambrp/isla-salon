@@ -2,7 +2,7 @@ import { Graphics, GraphicsContext, buildContextBatches } from 'pixi.js';
 import { describe, expect, it } from 'vitest';
 import {
   BROW_HEIGHTS, DEFAULT_FEATURES, EYE_COLOURS, FACE_SHAPES, SKIN_TONES, browLift, browLineY, browTop, browWidth,
-  cleanFeatures, facePoints, noseScale, type Brows,
+  cleanFeatures, facePoints, noseScale, noseStandOut, NOSE_SCALE_MAX, BROW_WIDTH_MAX, type Brows,
 } from './features';
 import { drawCharacter } from './render/character';
 import { buildLocks } from './render/hair';
@@ -158,6 +158,45 @@ describe('hot and cold colouring', () => {
         expect(calm[i][1]).toBe(warm[i][1]);
       }
       expect(changed).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe('largest nose and thickest brow', () => {
+  it('make the largest nose 75 per cent bigger and the thickest brow 75 per cent thicker, with the middle and the small end unchanged', () => {
+    expect(noseScale(1)).toBeCloseTo(1.35 * 1.75);
+    expect(noseScale(1)).toBe(NOSE_SCALE_MAX);
+    expect(noseScale(0.5)).toBeCloseTo(1);
+    expect(noseScale(0)).toBeCloseTo(0.65);
+    expect(noseStandOut(0.5)).toBe(0);
+    expect(noseStandOut(0)).toBeCloseTo(-5);
+    expect(noseStandOut(1)).toBeCloseTo(5 * 1.75);
+    const mid = { ...DEFAULT_FEATURES.brows };
+    expect(browWidth({ ...mid, thickness: 1 })).toBeCloseTo(5.5 * 1.75);
+    expect(browWidth({ ...mid, thickness: 1 })).toBe(BROW_WIDTH_MAX);
+    expect(browWidth({ ...mid, thickness: 0.5 })).toBeCloseTo(4);
+    expect(browWidth({ ...mid, thickness: 0 })).toBeCloseTo(2.5);
+  });
+  it('grow steadily with no jump at the middle', () => {
+    let pn = -1, pw = -1;
+    for (let i = 0; i <= 100; i++) {
+      const n = noseScale(i / 100), w = browWidth({ ...DEFAULT_FEATURES.brows, thickness: i / 100 });
+      expect(n).toBeGreaterThan(pn);
+      expect(w).toBeGreaterThan(pw);
+      if (i > 0) { expect(n - pn).toBeLessThan(0.05); expect(w - pw).toBeLessThan(0.12); }
+      pn = n; pw = w;
+    }
+  });
+  it('leaves everyone in the cast looking as they did', async () => {
+    const { CAST } = await import('./cast');
+    const oldNose: Record<string, number> = { mateo: 0.6, leo: 0.6, tom: 0.7 };
+    const oldThick: Record<string, number> = { amara: 0.6, kenji: 0.55, mateo: 0.65, priya: 0.6, leo: 0.55, noor: 0.7, tom: 0.7 };
+    for (const m of CAST) {
+      const c = m.character;
+      const on = oldNose[c.id] ?? c.nose;
+      expect(noseScale(c.nose)).toBeCloseTo(0.65 + 0.7 * on, 1);
+      const ot = oldThick[c.id] ?? c.brows.thickness;
+      expect(browWidth(c.brows)).toBeCloseTo(2.5 + 3 * ot, 1);
     }
   });
 });
