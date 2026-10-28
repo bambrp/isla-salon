@@ -41,6 +41,7 @@
 <style>
   .photo {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: 10px;
     justify-items: center;
     padding-top: 6px;
@@ -48,7 +49,7 @@
 
   .backs {
     display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(3.2rem, 1fr));
     gap: 6px;
     width: 100%;
     max-width: 30rem;
@@ -71,6 +72,12 @@
   .back.on {
     background: var(--sun);
     box-shadow: 0 3px 0 var(--ink);
+  }
+
+  .name {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .thumb {

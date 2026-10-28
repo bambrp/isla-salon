@@ -45,7 +45,7 @@
         <circle cx="39" cy="35" r="2.6" fill={hex(c.eyes)} stroke="#1d1030" stroke-width="1.2" />
         <path d="M26 44 Q32 48 38 44" fill="none" stroke="#1d1030" stroke-width="2.5" stroke-linecap="round" />
       </svg>
-      <span class="name">{c.name}</span>
+      <span class="name">{c.name} <span class="age">{member.age}</span></span>
     </button>
   {/each}
 </div>
@@ -81,6 +81,12 @@
   .name {
     font-weight: 800;
     font-size: 0.72rem;
+    white-space: nowrap;
+  }
+
+  .age {
+    font-weight: 700;
+    color: var(--pink-deep);
   }
 
 </style>

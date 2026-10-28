@@ -47,7 +47,7 @@ const all = (l: Length, front: Length = l): Record<Region, Length> => ({ front, 
 
 /** Nose and brow values here were retuned when the largest nose and thickest brow grew 75 per cent, so each person looks as they did. */
 /** Isla first (exactly as she has always been), then eight more of different ages, genders and backgrounds. */
-export const CAST: readonly CastMember[] = [
+const CAST_BASE: readonly CastMember[] = [
   {
     character: makeCharacter({ id: 'isla', name: 'Isla', skin: skin('pale'), eyes: eyes('blue'), hair: '#ffd84a', seed: 6 }),
     age: 6,
@@ -118,6 +118,13 @@ export const CAST: readonly CastMember[] = [
     start: { length: all('bob', 'short1'), curl: 0, product: 'none' },
   },
 ];
+
+/** Children and older people start with rosy cheeks; everyone from 14 to 64 starts without (the switch can still turn them on). */
+export function rosyAtAge(age: number): boolean {
+  return age < 14 || age >= 65;
+}
+
+export const CAST: readonly CastMember[] = CAST_BASE.map((m) => ({ ...m, character: { ...m.character, cheeks: rosyAtAge(m.age) } }));
 
 export const ISLA: CharacterDef = CAST[0].character;
 

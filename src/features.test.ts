@@ -237,10 +237,12 @@ describe('rosy cheeks', () => {
     return (g as unknown as { context: { instructions: Array<{ action: string; data: { style: { color: number; alpha: number } } }> } }).context.instructions
       .filter((i) => i.action === 'fill').map((i) => [i.data.style.color, i.data.style.alpha]);
   };
-  it('are on for Isla and everyone in the cast to begin with', async () => {
+  it('start on for children and people of 65 or more, and off for ages 14 to 64', async () => {
     const { CAST } = await import('./cast');
     expect(ISLA.cheeks).toBe(true);
-    for (const m of CAST) expect(m.character.cheeks).toBe(true);
+    // Children and people of 65 or more start rosy; ages 14 to 64 start without.
+    for (const m of CAST) expect(m.character.cheeks).toBe(m.age < 14 || m.age >= 65);
+    expect(CAST.filter((m) => !m.character.cheeks).map((m) => m.age)).toEqual([14, 16, 27, 35, 42]);
   });
   it('show two blush patches in a colour worked out from the skin, and none when off', () => {
     for (const tone of SKIN_TONES) {

@@ -25,8 +25,9 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const request = event.request;
   if (request.method !== 'GET' || new URL(request.url).origin !== self.location.origin) return;
-  // Stored copy first, so it opens at once and works offline; the network only fills gaps.
+  // Stored copy first, so it opens at once and works offline; the network only fills gaps. ignoreVary matters: some servers
+  // send "Vary: Origin", and the page's module scripts and stylesheet (loaded with crossorigin) would otherwise miss the stored copy.
   event.respondWith(
-    caches.match(request, { ignoreSearch: true }).then((hit) => hit || fetch(request)),
+    caches.match(request, { ignoreSearch: true, ignoreVary: true }).then((hit) => hit || fetch(request)),
   );
 });

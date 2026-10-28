@@ -1,7 +1,8 @@
 # Isla's Salon
 
-A casual haircut game for phones, tablets and computers. Wash, colour, cut and style Isla's hair, turn her round to see
-every side, and take a photo. Everything is drawn in code, there is no server, and once loaded it works offline.
+A casual haircut game for phones, tablets and computers. Choose one of nine characters (or change their face, skin,
+brows and hair), then wash, colour, cut and style their hair, turn them round to see every side, and take a photo in
+the photo booth against five backgrounds: Salon, Beach, City, Forest and Clouds. Everything is drawn in code, there is no server, and once loaded it works offline.
 
 Left and right in the game, the code and these notes are always the player's: the way you see the screen.
 
@@ -10,7 +11,7 @@ Left and right in the game, the code and these notes are always the player's: th
 ```
 npm install
 npm run dev       # play it while editing, at the address shown
-npm test          # 157 unit tests
+npm test          # 275 unit tests
 npm run check     # type check
 npm run build     # type check, then the finished game in dist/
 npm run preview   # try the finished game locally
@@ -32,7 +33,7 @@ at the top of a site or in a sub-folder.
   offline play and "add to home screen" to work. Make sure `sw.js`, `index.html` and `manifest.webmanifest` are not cached
   for long, so a new version reaches people.
 
-Offline play: the first visit stores the whole game in the browser (about 0.8 MB), after which it opens with no network.
+Offline play: the first visit stores the whole game in the browser (under 1 MB), after which it opens with no network.
 A new build replaces the stored copy the next time the page is opened with a connection.
 
 The page has a strict content security policy: it can only load its own files, and the game makes no network requests of
@@ -48,8 +49,8 @@ of the same era. It draws with WebGL, falls back to a plain canvas without it, a
 Automated checks ran in Chromium with phone, tablet and desktop emulation. Firefox and Safari were not available to the
 automated tests, so before a public launch, open it on a real iPhone and in Firefox and try:
 
-1. Each of the four stages: the controls respond to touch, and holding "Hold for water" keeps the water running.
-2. Rotate through all four views, and take a photo in each. On iPhone the share sheet should open; choose "Save Image".
+1. Each of the six stages (Character, Wash, Colour, Cut, Style, Photo booth): the controls respond to touch, and holding "Hold for water" keeps the water running.
+2. Rotate through all four views, and take a photo in each, on every background. On iPhone the share sheet should open; choose "Save Image".
 3. Turn the phone to landscape, and back: nothing should be cut off.
 4. Start over (two taps) and mute, reload: the sound setting is remembered.
 5. Switch to aeroplane mode and reload: the game still opens and plays.
