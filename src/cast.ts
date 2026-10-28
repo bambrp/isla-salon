@@ -63,7 +63,7 @@ export const CAST: readonly CastMember[] = [
   {
     character: makeCharacter({
       id: 'kenji', name: 'Kenji', skin: skin('pale'), eyes: eyes('brown'), hair: '#3b3050', seed: 17,
-      face: 'round', nose: 0.3, brows: { thickness: 0.513, arch: 0.2, height: 'low', spacing: 0.55 },
+      face: 'round', nose: 0.3, brows: { thickness: 0.513, arch: 0.2, height: 'low', spacing: 0.531 },
     }),
     age: 8,
     start: { length: all('short2', 'short3'), curl: 0, product: 'none' },
@@ -71,7 +71,7 @@ export const CAST: readonly CastMember[] = [
   {
     character: makeCharacter({
       id: 'mateo', name: 'Mateo', skin: skin('light-brown'), eyes: eyes('brown'), hair: '#4b2e1c', seed: 23,
-      face: 'square', nose: 0.526, adamsApple: true, brows: { thickness: 0.54, arch: 0.3, height: 'mid', spacing: 0.4 },
+      face: 'square', nose: 0.526, adamsApple: true, brows: { thickness: 0.54, arch: 0.3, height: 'mid', spacing: 0.449 },
     }),
     age: 14,
     start: { length: all('short1', 'short2'), curl: 1, product: 'none' },
@@ -87,7 +87,7 @@ export const CAST: readonly CastMember[] = [
   {
     character: makeCharacter({
       id: 'leo', name: 'Leo', skin: skin('fully-tanned'), eyes: eyes('green'), hair: '#7a4a2a', seed: 31,
-      face: 'triangular', nose: 0.526, adamsApple: true, brows: { thickness: 0.513, arch: 0.45, height: 'mid', spacing: 0.6 },
+      face: 'triangular', nose: 0.526, adamsApple: true, brows: { thickness: 0.513, arch: 0.45, height: 'mid', spacing: 0.5625 },
     }),
     age: 27,
     start: { length: all('short2', 'short3'), curl: 2, product: 'none' },
@@ -95,7 +95,7 @@ export const CAST: readonly CastMember[] = [
   {
     character: makeCharacter({
       id: 'noor', name: 'Noor', skin: skin('light-brown'), eyes: eyes('hazel'), hair: '#4b2e1c', seed: 37,
-      face: 'triangular', nose: 0.45, brows: { thickness: 0.553, arch: 0.8, height: 'mid', spacing: 0.45 },
+      face: 'triangular', nose: 0.45, brows: { thickness: 0.553, arch: 0.8, height: 'mid', spacing: 0.474 },
     }),
     age: 35,
     start: { length: all('shoulders'), curl: 1, product: 'none' },
@@ -103,7 +103,7 @@ export const CAST: readonly CastMember[] = [
   {
     character: makeCharacter({
       id: 'tom', name: 'Tom', skin: skin('rosy'), eyes: eyes('green'), hair: '#ff8a2b', seed: 41,
-      face: 'square', nose: 0.551, adamsApple: true, brows: { thickness: 0.553, arch: 0.25, height: 'low', spacing: 0.35 },
+      face: 'square', nose: 0.551, adamsApple: true, brows: { thickness: 0.553, arch: 0.25, height: 'low', spacing: 0.423 },
     }),
     age: 42,
     start: { length: all('short3'), curl: 0, product: 'none' },
@@ -111,7 +111,7 @@ export const CAST: readonly CastMember[] = [
   {
     character: makeCharacter({
       id: 'grace', name: 'Grace', skin: skin('pink'), eyes: eyes('blue'), hair: '#9aa0aa', seed: 43,
-      face: 'round', nose: 0.5, brows: { thickness: 0.3, arch: 0.5, height: 'mid', spacing: 0.55 },
+      face: 'round', nose: 0.5, brows: { thickness: 0.3, arch: 0.5, height: 'mid', spacing: 0.531 },
     }),
     age: 68,
     start: { length: all('bob', 'short1'), curl: 0, product: 'none' },

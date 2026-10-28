@@ -15,8 +15,8 @@ import { CALM, tintedSkin, type Mood } from './complexion';
 import { drawLocks, sheenRuns, splitLocks, type Lock, type SheenPoint } from './hair';
 import { INK, OUTLINE, PALETTE, SHADOW_FACTOR, celEllipse, shade } from './style';
 import {
-  BROW_SPAN_DEG,
   browLineY,
+  browSpanDeg,
   browStartDeg,
   browWidth,
   facePoints,
@@ -215,9 +215,10 @@ function drawBrow(g: Graphics, side: number, phi: number, colour: number, annoye
   const pts: Array<Pt & { visible: boolean }> = [];
   const steps = 8;
   const start = browStartDeg(brows);
+  const span = browSpanDeg(brows);
   for (let k = 0; k <= steps; k++) {
     const t = k / steps;
-    const az = side * (start + BROW_SPAN_DEG * t) * DEG;
+    const az = side * (start + span * t) * DEG;
     // Annoyed: the inner ends sink and the outer ends lift, so the brows slant down towards the nose.
     const y = browLineY(brows, t) + annoyed * (7 - 12 * t);
     const s = surface(az, y, 0.5);

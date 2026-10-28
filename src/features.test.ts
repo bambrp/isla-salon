@@ -200,3 +200,31 @@ describe('largest nose and thickest brow', () => {
     }
   });
 });
+
+describe('brow spacing', () => {
+  const B = (spacing: number, thickness = 0.5): Brows => ({ ...DEFAULT_FEATURES.brows, spacing, thickness });
+  it('moves only the inner end: the outer end never moves', async () => {
+    const { browStartDeg, browSpanDeg, BROW_OUTER_DEG } = await import('./features');
+    for (const th of [0, 0.5, 1])
+      for (let i = 0; i <= 20; i++) expect(browStartDeg(B(i / 20, th)) + browSpanDeg(B(i / 20, th))).toBeCloseTo(BROW_OUTER_DEG);
+  });
+  it('touches at the closest setting, sits where it did in the middle, and is wide apart at the far end', async () => {
+    const { browStartDeg, browWidth } = await import('./features');
+    for (const th of [0, 0.5, 1]) {
+      const w = browWidth(B(0, th));
+      // Each inner edge is half a brow from the centre line, so the gap between the brows' inner edges is zero.
+      const innerEdge = 77 * Math.sin((browStartDeg(B(0, th)) * Math.PI) / 180) - w / 2;
+      expect(Math.abs(innerEdge)).toBeLessThan(0.05);
+    }
+    expect(browStartDeg(B(0.5))).toBeCloseTo(12);
+    expect(browStartDeg(B(1))).toBeCloseTo(20);
+    let prev = -1;
+    for (let i = 0; i <= 100; i++) { const a = browStartDeg(B(i / 100)); expect(a).toBeGreaterThan(prev); prev = a; }
+  });
+  it('leaves everyone in the cast with their inner end where it was', async () => {
+    const { CAST } = await import('./cast');
+    const { browStartDeg } = await import('./features');
+    const old: Record<string, number> = { amara: 0.5, kenji: 0.55, mateo: 0.4, priya: 0.5, leo: 0.6, noor: 0.45, tom: 0.35, grace: 0.55 };
+    for (const m of CAST) if (old[m.character.id] !== undefined) expect(browStartDeg(m.character.brows)).toBeCloseTo(12 + (old[m.character.id] - 0.5) * 10, 0);
+  });
+});

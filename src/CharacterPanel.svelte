@@ -89,7 +89,7 @@
     {:else if tab === 'brows'}
       <FeatureSlider label="Thickness" value={c.brows.thickness} low="Thin" high="Thick" onInput={(v) => setCharacterLook({ brows: { thickness: v } })} />
       <FeatureSlider label="Arch" value={c.brows.arch} low="Flat" high="Arched" onInput={(v) => setCharacterLook({ brows: { arch: v } })} />
-      <FeatureSlider label="Apart" value={c.brows.spacing} low="Close together" high="Far apart" onInput={(v) => setCharacterLook({ brows: { spacing: v } })} />
+      <FeatureSlider label="Apart" value={c.brows.spacing} low="Touching" high="Far apart" onInput={(v) => setCharacterLook({ brows: { spacing: v } })} />
       <div class="heights" role="radiogroup" aria-label="Brow height">
         {#each BROW_HEIGHTS as h}
           <button class="opt" role="radio" aria-checked={c.brows.height === h} on:click={() => setCharacterLook({ brows: { height: h } })}>

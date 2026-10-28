@@ -130,11 +130,33 @@ export function browWidth(b: Brows): number {
   return t <= 0.5 ? 2.5 + 3 * t : 4 + (BROW_WIDTH_MAX - 4) * (t - 0.5) * 2;
 }
 
-/** Azimuth (degrees) of the inner end of the brow; the brow spans 24 degrees from here. */
-export function browStartDeg(b: Brows): number {
-  return 12 + (clamp01(b.spacing) - 0.5) * 10;
+/** The outer end of every brow stays here (degrees round the head from straight ahead), whatever the spacing. */
+export const BROW_OUTER_DEG = 36;
+/** The inner end sits here in the middle (Isla's, so she is unchanged) and here at the widest spacing. */
+export const BROW_INNER_MID_DEG = 12;
+export const BROW_INNER_MAX_DEG = 20;
+/** The radius of the face where the brows sit, to turn a brow's thickness into an angle. */
+const BROW_SURFACE_R = 77;
+
+/** Azimuth (degrees) of the inner end when the two brows just touch at the centre line: their inner edges meet. */
+export function browTouchDeg(b: Brows): number {
+  return (Math.asin(Math.min(1, browWidth(b) / 2 / BROW_SURFACE_R)) * 180) / Math.PI;
 }
-export const BROW_SPAN_DEG = 24;
+
+/**
+ * Azimuth (degrees) of the inner end of the brow. Only the inner end moves with the spacing: at 0 the two brows touch,
+ * at the middle they are where Isla's are, and at 1 they are wide apart. The outer end stays at BROW_OUTER_DEG.
+ */
+export function browStartDeg(b: Brows): number {
+  const s = clamp01(b.spacing);
+  const touch = browTouchDeg(b);
+  return s <= 0.5 ? touch + (BROW_INNER_MID_DEG - touch) * s * 2 : BROW_INNER_MID_DEG + (BROW_INNER_MAX_DEG - BROW_INNER_MID_DEG) * (s - 0.5) * 2;
+}
+
+/** How far round the head (degrees) the brow runs, from its inner end to its fixed outer end. */
+export function browSpanDeg(b: Brows): number {
+  return BROW_OUTER_DEG - browStartDeg(b);
+}
 
 /**
  * Height of the brow line (relative to the head centre) at t, 0 at the inner end to 1 at the outer end. The arch lifts
