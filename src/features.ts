@@ -56,6 +56,8 @@ export interface FaceFeatures {
   /** 0 small to 1 large. */
   nose: number;
   adamsApple: boolean;
+  /** Whether the cheeks are rosy. */
+  cheeks: boolean;
   brows: Brows;
   face: FaceShape;
 }
@@ -64,6 +66,7 @@ export interface FaceFeatures {
 export const DEFAULT_FEATURES: FaceFeatures = {
   nose: 0.5,
   adamsApple: false,
+  cheeks: true,
   brows: { thickness: 0.5, arch: 0.5, height: 'mid', spacing: 0.5 },
   face: 'oval',
 };
@@ -77,6 +80,7 @@ export function cleanFeatures(f: FaceFeatures): FaceFeatures {
   return {
     nose: clamp01(f.nose),
     adamsApple: !!f.adamsApple,
+    cheeks: f.cheeks === undefined ? true : !!f.cheeks,
     brows: {
       thickness: clamp01(f.brows.thickness),
       arch: clamp01(f.brows.arch),
@@ -238,4 +242,26 @@ export function facePoints(shape: FaceShape, hw: number, ry: number, steps = 48)
     pts.push(hw * x * (1 + p.bulge * bump), ry * p.chin * y);
   }
   return pts;
+}
+
+// ---------------------------------------------------------------------------------------------------
+// Rosy cheeks
+// ---------------------------------------------------------------------------------------------------
+
+/** The rose the blush leans towards. */
+const BLUSH_ROSE = 0xff5c8a;
+/** How much of the rose is in the blush; the rest is the character's own base skin colour. */
+const BLUSH_ROSE_SHARE = 0.65;
+/** How strong the blush is where it lies over the skin. */
+export const BLUSH_ALPHA = 0.55;
+
+/**
+ * The colour of a character's rosy cheeks, worked out from their base skin (never the water-temperature tint): the skin
+ * leaned towards a rose, so it keeps some of the skin's warmth and depth. On pale skin it is a soft pink and on dark skin
+ * a deeper rose, and it shows on every tone.
+ */
+export function blushColour(skin: number): number {
+  const ch = (shift: number) =>
+    Math.round(((skin >> shift) & 255) * (1 - BLUSH_ROSE_SHARE) + ((BLUSH_ROSE >> shift) & 255) * BLUSH_ROSE_SHARE);
+  return (ch(16) << 16) | (ch(8) << 8) | ch(0);
 }

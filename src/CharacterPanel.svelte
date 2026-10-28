@@ -56,9 +56,14 @@
         {/each}
       </div>
       <FeatureSlider label="Nose size" value={c.nose} low="Small" high="Large" onInput={(v) => setCharacterLook({ nose: v })} />
-      <button class="toggle" aria-pressed={c.adamsApple} on:click={() => setCharacterLook({ adamsApple: !c.adamsApple })}>
-        Adam's apple: <b>{c.adamsApple ? 'Yes' : 'No'}</b>
-      </button>
+      <div class="toggles">
+        <button class="toggle" aria-pressed={c.adamsApple} on:click={() => setCharacterLook({ adamsApple: !c.adamsApple })}>
+          Adam's apple: <b>{c.adamsApple ? 'Yes' : 'No'}</b>
+        </button>
+        <button class="toggle" aria-pressed={c.cheeks} on:click={() => setCharacterLook({ cheeks: !c.cheeks })}>
+          Rosy cheeks: <b>{c.cheeks ? 'On' : 'Off'}</b>
+        </button>
+      </div>
     {:else if tab === 'colours'}
       <div class="label" id="skin-label">Skin</div>
       <div class="swatches skin" role="radiogroup" aria-labelledby="skin-label">
@@ -203,6 +208,12 @@
   .toggle[aria-pressed='true'] {
     background: var(--sun);
     box-shadow: inset 0 -4px 0 rgba(29, 16, 48, 0.22);
+  }
+
+  .toggles {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
   }
 
   .heights {

@@ -115,7 +115,7 @@ describe('changing a look', () => {
   it('randomises every feature, in range, and keeps the name, seed and hair work', async () => {
     const { randomiseLook } = await import('./state');
     const { SKIN_TONES, EYE_COLOURS, FACE_SHAPES, BROW_HEIGHTS } = await import('./features');
-    const seen = { skin: new Set<number>(), eyes: new Set<number>(), face: new Set<string>(), height: new Set<string>(), apple: new Set<boolean>(), hair: new Set<string>() };
+    const seen = { skin: new Set<number>(), eyes: new Set<number>(), face: new Set<string>(), height: new Set<string>(), apple: new Set<boolean>(), cheeks: new Set<boolean>(), hair: new Set<string>() };
     const rand = seeded(5);
     for (let i = 0; i < 300; i++) {
       randomiseLook(rand);
@@ -128,13 +128,14 @@ describe('changing a look', () => {
       expect(BROW_HEIGHTS).toContain(c.brows.height);
       expect(HAIR_SWATCHES.map((s) => s.hex)).toContain(c.hair);
       for (const v of [c.nose, c.brows.thickness, c.brows.arch, c.brows.spacing]) expect(v >= 0 && v <= 1).toBe(true);
-      seen.skin.add(c.skin); seen.eyes.add(c.eyes); seen.face.add(c.face); seen.height.add(c.brows.height); seen.apple.add(c.adamsApple); seen.hair.add(c.hair);
+      seen.skin.add(c.skin); seen.eyes.add(c.eyes); seen.face.add(c.face); seen.height.add(c.brows.height); seen.apple.add(c.adamsApple); seen.cheeks.add(c.cheeks); seen.hair.add(c.hair);
     }
     expect(seen.skin.size).toBe(9);
     expect(seen.eyes.size).toBe(4);
     expect(seen.face.size).toBe(4);
     expect(seen.height.size).toBe(3);
     expect(seen.apple.size).toBe(2);
+    expect(seen.cheeks.size).toBe(2);
     expect(seen.hair.size).toBe(HAIR_SWATCHES.length);
     expect(get(salon).hair.length).toEqual(startingHair('isla').length);
   });

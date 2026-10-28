@@ -2,7 +2,7 @@ import { Graphics, GraphicsContext, buildContextBatches } from 'pixi.js';
 import { describe, expect, it } from 'vitest';
 import {
   BROW_HEIGHTS, DEFAULT_FEATURES, EYE_COLOURS, FACE_SHAPES, SKIN_TONES, browLift, browLineY, browTop, browWidth,
-  cleanFeatures, facePoints, noseScale, noseStandOut, NOSE_SCALE_MAX, BROW_WIDTH_MAX, type Brows,
+  blushColour, BLUSH_ALPHA, cleanFeatures, facePoints, noseScale, noseStandOut, NOSE_SCALE_MAX, BROW_WIDTH_MAX, type Brows,
 } from './features';
 import { drawCharacter } from './render/character';
 import { buildLocks } from './render/hair';
@@ -37,8 +37,8 @@ describe('feature data', () => {
     expect(EYE_COLOURS[0].hex).toBe(ISLA.eyes);
   });
   it('holds stray values in range', () => {
-    const f = cleanFeatures({ nose: NaN, adamsApple: 1 as never, brows: { thickness: 9, arch: -3, height: 'x' as never, spacing: Infinity }, face: 'pear' as never });
-    expect(f).toEqual({ nose: 0, adamsApple: true, brows: { thickness: 1, arch: 0, height: 'mid', spacing: 0 }, face: 'oval' });
+    const f = cleanFeatures({ nose: NaN, cheeks: 0 as never, adamsApple: 1 as never, brows: { thickness: 9, arch: -3, height: 'x' as never, spacing: Infinity }, face: 'pear' as never });
+    expect(f).toEqual({ nose: 0, cheeks: false, adamsApple: true, brows: { thickness: 1, arch: 0, height: 'mid', spacing: 0 }, face: 'oval' });
   });
   it('makes Isla from the defaults', () => {
     expect(ISLA.nose).toBe(DEFAULT_FEATURES.nose);
@@ -134,7 +134,7 @@ describe('drawing every feature', () => {
 
 describe('hot and cold colouring', () => {
   it('only ever changes skin colours: never whites, ink, irises, blush or brows', async () => {
-    const { PALETTE, INK } = await import('./render/style');
+    const { INK } = await import('./render/style');
     const { browColour } = await import('./render/character');
     const fills = (tone: number): Array<[number, number]> => {
       const state = initialState(makeCharacter({ id: 't', name: 'T', adamsApple: true }));
@@ -146,7 +146,7 @@ describe('hot and cold colouring', () => {
       return out;
     };
     const calm = fills(0);
-    const protectedColours = new Set<number>([0xffffff, INK, PALETTE.blush, ISLA.eyes, browColour(ISLA.hair)]);
+    const protectedColours = new Set<number>([0xffffff, INK, blushColour(makeCharacter({ id: 't', name: 'T' }).skin), ISLA.eyes, browColour(ISLA.hair)]);
     for (const tone of [-1, -0.5, 0.5, 1]) {
       const warm = fills(tone);
       expect(warm).toHaveLength(calm.length);
@@ -226,5 +226,51 @@ describe('brow spacing', () => {
     const { browStartDeg } = await import('./features');
     const old: Record<string, number> = { amara: 0.5, kenji: 0.55, mateo: 0.4, priya: 0.5, leo: 0.6, noor: 0.45, tom: 0.35, grace: 0.55 };
     for (const m of CAST) if (old[m.character.id] !== undefined) expect(browStartDeg(m.character.brows)).toBeCloseTo(12 + (old[m.character.id] - 0.5) * 10, 0);
+  });
+});
+
+describe('rosy cheeks', () => {
+  const fills = (cheeks: boolean, skin: number): Array<[number, number]> => {
+    const state = initialState(makeCharacter({ id: 't', name: 'T', skin, cheeks }));
+    const g = new Graphics();
+    drawCharacter(g, state, 0, buildLocks({ front: 4, left: 4, right: 4, back: 4 }, 6), hairPaint(state.hair.colour) as never, 0, { tone: 0, annoyed: 0, clench: 0 });
+    return (g as unknown as { context: { instructions: Array<{ action: string; data: { style: { color: number; alpha: number } } }> } }).context.instructions
+      .filter((i) => i.action === 'fill').map((i) => [i.data.style.color, i.data.style.alpha]);
+  };
+  it('are on for Isla and everyone in the cast to begin with', async () => {
+    const { CAST } = await import('./cast');
+    expect(ISLA.cheeks).toBe(true);
+    for (const m of CAST) expect(m.character.cheeks).toBe(true);
+  });
+  it('show two blush patches in a colour worked out from the skin, and none when off', () => {
+    for (const tone of SKIN_TONES) {
+      const blush = blushColour(tone.hex);
+      const on = fills(true, tone.hex).filter(([c, a]) => c === blush && a === BLUSH_ALPHA);
+      expect(on, tone.name).toHaveLength(2);
+      expect(fills(false, tone.hex).filter(([c, a]) => c === blush && a === BLUSH_ALPHA), tone.name).toHaveLength(0);
+    }
+  });
+  it('are a different colour on each skin tone, always redder than the skin and clearly visible against it', () => {
+    const seen = new Set<number>();
+    for (const tone of SKIN_TONES) {
+      const b = blushColour(tone.hex);
+      seen.add(b);
+      expect((b >> 16) & 255).toBeGreaterThanOrEqual((tone.hex >> 16) & 255);
+      // The blush, at its strength over the skin, differs from the bare skin by a clear margin in at least one channel.
+      const over = (shift: number) => Math.round(((b >> shift) & 255) * BLUSH_ALPHA + ((tone.hex >> shift) & 255) * (1 - BLUSH_ALPHA));
+      const diff = Math.max(...[16, 8, 0].map((sh) => Math.abs(over(sh) - ((tone.hex >> sh) & 255))));
+      expect(diff, tone.name).toBeGreaterThan(18);
+    }
+    expect(seen.size).toBe(9);
+  });
+  it('stay the same whatever the water temperature', () => {
+    const blush = blushColour(ISLA.skin);
+    for (const tone of [-1, 0, 1]) {
+      const state = initialState(ISLA);
+      const g = new Graphics();
+      drawCharacter(g, state, 0, buildLocks({ front: 4, left: 4, right: 4, back: 4 }, 6), hairPaint(state.hair.colour) as never, 0, { tone, annoyed: 0, clench: 0 });
+      const ins = (g as unknown as { context: { instructions: Array<{ action: string; data: { style: { color: number; alpha: number } } }> } }).context.instructions;
+      expect(ins.filter((i) => i.action === 'fill' && i.data.style.color === blush && i.data.style.alpha === BLUSH_ALPHA)).toHaveLength(2);
+    }
   });
 });
