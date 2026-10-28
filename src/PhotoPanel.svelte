@@ -13,6 +13,7 @@
     city: 'linear-gradient(#9cd9ff 0 40%, #ff9eb5 40% 55%, #b69cff 55% 80%, #6b7385 80%)',
     forest: 'linear-gradient(#d0f09a 0 35%, #3fae57 35% 75%, #6fc24b 75%)',
     clouds: 'linear-gradient(#5ab2fa 0 45%, #9fd5fd 45% 75%, #fff 75%)',
+    brick: 'linear-gradient(#c4573d 0 30%, #e3cfae 30% 36%, #b34a35 36% 66%, #e3cfae 66% 72%, #d06a45 72%)',
   };
 </script>
 

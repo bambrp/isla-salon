@@ -9,9 +9,9 @@ import { INK, OUTLINE, shade } from './style';
  * and no outline repeats a point, because phone graphics chips draw broken vertices as stray lines.
  */
 
-export type BoothBackground = 'salon' | 'beach' | 'city' | 'forest' | 'clouds';
-export const BOOTH_BACKGROUNDS: readonly BoothBackground[] = ['salon', 'beach', 'city', 'forest', 'clouds'];
-export const BOOTH_LABELS: Record<BoothBackground, string> = { salon: 'Salon', beach: 'Beach', city: 'City', forest: 'Forest', clouds: 'Clouds' };
+export type BoothBackground = 'salon' | 'beach' | 'city' | 'forest' | 'clouds' | 'brick';
+export const BOOTH_BACKGROUNDS: readonly BoothBackground[] = ['salon', 'beach', 'city', 'forest', 'clouds', 'brick'];
+export const BOOTH_LABELS: Record<BoothBackground, string> = { salon: 'Salon', beach: 'Beach', city: 'City', forest: 'Forest', clouds: 'Clouds', brick: 'Brick' };
 
 const X0 = -600;
 const X1 = 1000;
@@ -310,9 +310,74 @@ function drawClouds(g: Graphics): void {
   cloud(g, 300, 470, 1.3);
 }
 
+// ---------------------------------------------------------------------------------------------------
+// Brick
+// ---------------------------------------------------------------------------------------------------
+
+function drawBrick(g: Graphics): void {
+  const MORTAR = 0xe3cfae;
+  const EDGE = 0x5a2a22;
+  const palette = [0xc4573d, 0xb34a35, 0xd06a45, 0xa8432f, 0xcf7a52, 0xbb5238];
+  g.rect(X0, Y0, X1 - X0, Y1 - Y0).fill(MORTAR);
+  const rand = mulberry32(31);
+  const BW = 56;
+  const BH = 26;
+  let row = 0;
+  for (let y = -400; y < 900; y += BH, row++) {
+    const offset = (row % 2) * (BW / 2);
+    for (let x = -500 - offset; x < 900; x += BW) {
+      const pick = rand();
+      const colour = pick < 0.12 ? 0xe29b6c : pick < 0.2 ? 0x8f3a2a : palette[Math.floor(rand() * palette.length)];
+      g.roundRect(x + 2, y + 2, BW - 4, BH - 4, 4).fill(colour).stroke({ width: 3, color: EDGE, join: 'round' });
+      // A lit top edge on each brick, and now and then a chip.
+      g.rect(x + 7, y + 6, BW - 18, 3).fill({ color: 0xffffff, alpha: 0.2 });
+      if (rand() < 0.08) g.poly([x + BW - 14, y + 3, x + BW - 4, y + 3, x + BW - 4, y + 12]).fill({ color: MORTAR, alpha: 0.9 });
+    }
+  }
+  // Faded whitewash across the top, so the wall is lightest at the top and richest at her shoulders.
+  for (let i = 0; i < 5; i++) g.rect(X0, Y0 + i * 160, X1 - X0, 160).fill({ color: 0xfff3d6, alpha: 0.05 });
+  g.rect(X0, 120, X1 - X0, 190).fill({ color: 0x7a2f22, alpha: 0.07 });
+
+  // A paper poster, pasted on the left, with stripes and a sun.
+  g.rect(22, 70, 84, 104).fill(0xf6e7bd).stroke({ width: OUTLINE, color: INK, join: 'round' });
+  g.rect(30, 78, 68, 52).fill(0x4aa7a0).stroke({ width: 3, color: INK });
+  g.circle(64, 112, 15).fill(0xffd166).stroke({ width: 3, color: INK });
+  g.rect(31, 118, 66, 11).fill(0x2f7f79);
+  g.rect(32, 138, 64, 6).fill(0xc4573d);
+  g.rect(32, 150, 46, 5).fill(0x8f7a55);
+  g.rect(32, 160, 54, 5).fill(0x8f7a55);
+  g.poly([106, 70, 106, 92, 84, 70]).fill(0xd9c391).stroke({ width: 3, color: INK, join: 'round' });
+
+  // An old enamel sign on the right, hanging from a lamp post with a gas lamp on top.
+  g.rect(318, 52, 7, 150).fill(0x2b2f3a).stroke({ width: 3, color: INK });
+  g.poly(roundPoints(362, 160, 40, 26, 24)).fill(0x2f5da8).stroke({ width: OUTLINE, color: INK, join: 'round' });
+  g.poly(roundPoints(362, 160, 33, 19, 24)).fill(0xf6e7bd).stroke({ width: 3, color: INK, join: 'round' });
+  g.circle(362, 160, 9).fill(0xc4573d).stroke({ width: 3, color: INK });
+  g.poly([306, 52, 337, 52, 331, 26, 312, 26]).fill(0xffe08a).stroke({ width: 3, color: INK, join: 'round' });
+  g.circle(321, 39, 34).fill({ color: 0xffe9a8, alpha: 0.28 });
+  g.rect(310, 20, 22, 7).fill(0x2b2f3a).stroke({ width: 3, color: INK });
+
+  // The pavement along the bottom.
+  g.rect(X0, 440, X1 - X0, Y1 - 440).fill(0x6e6a7a).stroke({ width: OUTLINE, color: INK });
+  g.rect(X0, 440, X1 - X0, 12).fill(0x8b869a);
+  for (let x = -520; x < 920; x += 70) g.moveTo(x, 452).lineTo(x - 14, 520).stroke({ width: 3, color: 0x4d4a58, cap: 'round' });
+  for (let x = -560; x < 960; x += 90) g.moveTo(x, 520).lineTo(x + 70, 520).stroke({ width: 3, color: 0x4d4a58, cap: 'round' });
+}
+
+/** The points of a rounded oval (a superellipse) around (cx, cy), as flat x,y pairs. */
+function roundPoints(cx: number, cy: number, rx: number, ry: number, steps: number): number[] {
+  const out: number[] = [];
+  for (let i = 0; i < steps; i++) {
+    const a = (i / steps) * Math.PI * 2;
+    out.push(cx + Math.cos(a) * rx, cy + Math.sin(a) * ry);
+  }
+  return out;
+}
+
 export function drawBoothBackground(g: Graphics, background: Exclude<BoothBackground, 'salon'>): void {
   if (background === 'beach') drawBeach(g);
   else if (background === 'city') drawCity(g);
   else if (background === 'forest') drawForest(g);
+  else if (background === 'brick') drawBrick(g);
   else drawClouds(g);
 }

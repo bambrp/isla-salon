@@ -23,7 +23,7 @@ function scan(g: Graphics): { bad: number; total: number; sample: number[][] } {
  * the stray-lines bug only showed on phones. This builds the same triangles Pixi sends and checks every one is a number.
  */
 describe('geometry sent to the graphics card', () => {
-  for (const scene of ['sink', 'mirror', 'beach', 'city', 'forest', 'clouds'] as const) {
+  for (const scene of ['sink', 'mirror', 'beach', 'city', 'forest', 'clouds', 'brick'] as const) {
     it(`backdrop ${scene} has only finite vertices`, () => {
       const g = new Graphics();
       drawBackdrop(g, scene);
