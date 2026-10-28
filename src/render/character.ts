@@ -325,22 +325,44 @@ export function drawNose(g: Graphics, skin: number, phi: number, size: number, f
   if (side > 0.05) {
     // The face points towards screen-left when sin(phi) is positive.
     const dir = -Math.sign(sinPhi);
-    // Where the face outline really is at this height: the jaw shapes move it, so follow it.
+    // Where the face outline really is: the jaw shapes move it, so follow it at every height the nose covers.
     const hw = silhouetteHalfWidth(HEAD.rx, HEAD.rz, phi);
-    const edge = outlineX(facePoints(face, hw, HEAD.ry), NOSE_Y, dir);
-    const ellipse = hw * Math.sqrt(1 - (NOSE_Y / HEAD.ry) ** 2);
-    const cx = nose.sx + (edge === undefined ? 0 : dir * (Math.abs(edge) - ellipse) * side * side);
+    const outline = facePoints(face, hw, HEAD.ry);
+    const ellipse = (y: number) => hw * Math.sqrt(Math.max(0, 1 - (y / HEAD.ry) ** 2));
+    const baseX = (y: number): number => {
+      const edge = outlineX(outline, y, dir);
+      return nose.sx + (edge === undefined ? 0 : dir * (Math.abs(edge) - ellipse(NOSE_Y)) * side * side);
+    };
     const r = 6.5 * k;
-    const arc: number[] = [];
-    const steps = 12;
+    const height = r * 2.3;
+    // The nose profile runs from the forehead to the lip. The bridge leaves the face outline tangentially (it starts level with the outline), so the
+    // face's black outline flows on into the nose's with no corner; the tip is at 70% of the way down, and the underside comes
+    // back to the lip in a quarter-round. Both ends start exactly on the outline.
+    const TIP = 0.55;
+    const profile = (t: number): number => {
+      // s runs 0 to 0.5 down to the tip and 0.5 to 1 back to the lip; sin(pi s) makes one smooth, rounded bump.
+      const s = t <= TIP ? 0.5 * Math.pow(t / TIP, 2.2) : 1 - 0.5 * ((1 - t) / (1 - TIP));
+      // The power below 1 rounds the tip into a half-round while the bridge still starts level with the face outline.
+      return Math.pow(Math.sin(Math.PI * s), 0.55);
+    };
+    const steps = 16;
+    const top = nose.sy - TIP * height;
+    const bump: number[] = [];
+    const tail: number[] = [];
     for (let i = 0; i <= steps; i++) {
-      const t = -Math.PI / 2 + (i / steps) * Math.PI;
-      arc.push(cx + dir * Math.cos(t) * r, nose.sy + Math.sin(t) * r * 1.05);
+      const t = i / steps;
+      const y = top + t * height;
+      bump.push(baseX(y) + dir * profile(t) * r, y);
     }
-    // The skin carries on a little way into the face, so it covers the head's outline where the nose joins it.
-    const tail = [cx - dir * 4, nose.sy + r * 1.05, cx - dir * 4, nose.sy - r * 1.05];
-    g.poly([...arc, ...tail]).fill({ color: skin, alpha: vis });
-    g.poly(arc, false).stroke({ width: OUTLINE, color: INK, alpha: vis * side, cap: 'round', join: 'round' });
+    // The skin carries on a little way into the face to cover the head's own outline between the two ends.
+    for (let i = steps; i >= 0; i--) {
+      const y = top + (i / steps) * height;
+      tail.push(baseX(y) - dir * 4, y);
+    }
+    // On the shaded side of the head (the face turned to the screen-right) the nose takes the head's shadow tone.
+    const tone = dir > 0 ? shade(skin, SHADOW_FACTOR + 0.02) : skin;
+    g.poly([...bump, ...tail]).fill({ color: tone, alpha: vis });
+    g.poly(bump, false).stroke({ width: OUTLINE, color: INK, alpha: vis * side, cap: 'round', join: 'round' });
   }
   if (front > 0.2) {
     const a = front * front;

@@ -320,4 +320,16 @@ describe('the nose in side view', () => {
         expect(v.every(Number.isFinite)).toBe(true);
       }
   });
+  it('is in the head\'s shadow tone when the face is turned to the screen-right, and lit when turned to the screen-left', async () => {
+    const { drawNose } = await import('./render/character');
+    const { SHADOW_FACTOR, shade } = await import('./render/style');
+    const fillOf = (phi: number): number => {
+      const g = new Graphics();
+      drawNose(g, 0xffd9b8, phi, 0.5, 'oval');
+      const ins = (g as unknown as { context: { instructions: Array<{ action: string; data: { style: { color: number } } }> } }).context.instructions;
+      return ins.filter((i) => i.action === 'fill')[0].data.style.color;
+    };
+    expect(fillOf(Math.PI / 2)).toBe(0xffd9b8);
+    expect(fillOf((3 * Math.PI) / 2)).toBe(shade(0xffd9b8, SHADOW_FACTOR + 0.02));
+  });
 });
