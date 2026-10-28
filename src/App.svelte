@@ -212,7 +212,7 @@
     }
     try {
       const blob = await scene.photo();
-      const result = await savePhoto(blob, photoName($salon.view));
+      const result = await savePhoto(blob, photoName($salon.character.id, $salon.view, $salon.booth));
       if (result === 'downloaded') say('Photo saved to your downloads.');
       else if (result === 'shared') say('Photo ready to save.');
     } catch {

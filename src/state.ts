@@ -1,3 +1,5 @@
+import type { SceneName } from './render/backdrop';
+import type { BoothBackground } from './render/booth';
 import { get, writable } from 'svelte/store';
 import { withColour, withMode, type ColourMode, type HairColour } from './render/colour';
 import { SWIPES_TO_CUT, lengthsOf, planPosition, positionOf, positionsOf, type CutPlan, type Positions } from './cut';
@@ -34,6 +36,8 @@ export interface SavedCharacter {
 export interface SalonState {
   character: CharacterDef;
   stage: Stage;
+  /** The photo booth's background; the salon is the ordinary mirror scene. */
+  booth: BoothBackground;
   view: View;
   /** The region the length buttons change in the cutting stage. */
   cutTarget: CutTarget;
@@ -89,6 +93,7 @@ export function initialState(character: CharacterDef = ISLA): SalonState {
   return {
     character,
     stage: 'character',
+    booth: 'salon',
     view: 'front',
     cutTarget: 'all',
     cut: null,
@@ -105,9 +110,16 @@ export function nextView(view: View): View {
   return VIEWS[(VIEWS.indexOf(view) + 1) % VIEWS.length];
 }
 
-/** Which backdrop scene a stage uses: the sink for washing, the mirror for everything else. */
-export function sceneFor(stage: Stage): 'sink' | 'mirror' {
-  return stage === 'wash' ? 'sink' : 'mirror';
+/** Which backdrop scene a stage uses: the sink for washing, the booth's chosen background in the photo booth, the mirror otherwise. */
+export function sceneFor(stage: Stage, booth: BoothBackground = 'salon'): SceneName {
+  if (stage === 'wash') return 'sink';
+  if (stage === 'photo' && booth !== 'salon') return booth;
+  return 'mirror';
+}
+
+/** Choose the photo booth's background. */
+export function setBoothBackground(booth: BoothBackground): void {
+  salon.update((s) => (s.booth === booth ? s : { ...s, booth }));
 }
 
 const MUTE_KEY = 'islas-salon-muted';
@@ -299,6 +311,7 @@ export function resetSalon(): void {
   salon.update((s) => ({
     ...initialState(s.character),
     stage: s.stage,
+    booth: s.booth,
     view: s.view,
     audio: s.audio,
     saved: s.saved,

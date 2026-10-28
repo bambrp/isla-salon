@@ -23,6 +23,7 @@ import {
   BLUSH_ALPHA,
   facePoints,
   noseScale,
+  noseShowing,
   noseStandOut,
   type Brows,
   type FaceShape,
@@ -292,16 +293,54 @@ function drawCheeks(g: Graphics, phi: number, blush: number): void {
   }
 }
 
-function drawNose(g: Graphics, skin: number, phi: number, size: number): void {
+/** x of the face outline at height y on the side `sign` (-1 screen-left, 1 screen-right), from the outline points. */
+function outlineX(pts: number[], y: number, sign: number): number | undefined {
+  let best: number | undefined;
+  for (let i = 0; i < pts.length; i += 2) {
+    const j = (i + 2) % pts.length;
+    const y0 = pts[i + 1];
+    const y1 = pts[j + 1];
+    if ((y0 - y) * (y1 - y) > 0 || y0 === y1) continue;
+    const x = pts[i] + ((pts[j] - pts[i]) * (y - y0)) / (y1 - y0);
+    if (Math.sign(x) === sign && (best === undefined || Math.abs(x) > Math.abs(best))) best = x;
+  }
+  return best;
+}
+
+/**
+ * The nose. Face-on it is a small curved mark. Side-on it is a semicircle standing out from the face's edge: its centre sits
+ * on the outline of the face and only its outer half shows, joined to the face by skin with no line across its base.
+ */
+export function drawNose(g: Graphics, skin: number, phi: number, size: number, face: FaceShape): void {
+  const vis = noseShowing(phi);
+  if (vis <= 0) return;
   const k = noseScale(size);
-  const nose = project(0, 26, HEAD.rz + 4 + noseStandOut(size), phi);
-  if (nose.d <= 0) return;
-  const side = clamp(Math.abs(Math.sin(phi)) * 1.8, 0, 1);
+  // The nose sits on the surface of the face at this height (a little further out for a bigger nose).
+  const NOSE_Y = 26;
+  const surfaceZ = HEAD.rz * Math.sqrt(1 - (NOSE_Y / HEAD.ry) ** 2) + 0.3 * noseStandOut(size);
+  const nose = project(0, NOSE_Y, surfaceZ, phi);
+  const sinPhi = Math.sin(phi);
+  const side = clamp(Math.abs(sinPhi) * 1.8, 0, 1);
   const front = Math.max(0, Math.cos(phi));
-  // In profile the nose is a bump poking out of the silhouette; face-on it is just a small curved mark.
   if (side > 0.05) {
-    g.circle(nose.sx, nose.sy, 6.5 * k).fill(skin).stroke({ width: 3, color: INK, alpha: side });
-    g.circle(nose.sx - Math.sign(Math.sin(phi)) * 1.5 * k, nose.sy - 1.5 * k, 3 * k).fill(shade(skin, 1.03));
+    // The face points towards screen-left when sin(phi) is positive.
+    const dir = -Math.sign(sinPhi);
+    // Where the face outline really is at this height: the jaw shapes move it, so follow it.
+    const hw = silhouetteHalfWidth(HEAD.rx, HEAD.rz, phi);
+    const edge = outlineX(facePoints(face, hw, HEAD.ry), NOSE_Y, dir);
+    const ellipse = hw * Math.sqrt(1 - (NOSE_Y / HEAD.ry) ** 2);
+    const cx = nose.sx + (edge === undefined ? 0 : dir * (Math.abs(edge) - ellipse) * side * side);
+    const r = 6.5 * k;
+    const arc: number[] = [];
+    const steps = 12;
+    for (let i = 0; i <= steps; i++) {
+      const t = -Math.PI / 2 + (i / steps) * Math.PI;
+      arc.push(cx + dir * Math.cos(t) * r, nose.sy + Math.sin(t) * r * 1.05);
+    }
+    // The skin carries on a little way into the face, so it covers the head's outline where the nose joins it.
+    const tail = [cx - dir * 4, nose.sy + r * 1.05, cx - dir * 4, nose.sy - r * 1.05];
+    g.poly([...arc, ...tail]).fill({ color: skin, alpha: vis });
+    g.poly(arc, false).stroke({ width: OUTLINE, color: INK, alpha: vis * side, cap: 'round', join: 'round' });
   }
   if (front > 0.2) {
     const a = front * front;
@@ -319,7 +358,7 @@ function drawFace(g: Graphics, state: SalonState, skin: number, phi: number, bli
     // The brows keep to her natural hair colour, darkened, and never take the dye.
     drawBrow(g, side, phi, browColour(state.character.hair), mood.annoyed, state.character.brows);
   }
-  drawNose(g, skin, phi, state.character.nose);
+  drawNose(g, skin, phi, state.character.nose, state.character.face);
   drawTeeth(g, phi, mood.annoyed, mood.clench);
   drawMouth(g, phi, mood.annoyed, mood.clench);
 }

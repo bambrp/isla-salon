@@ -274,3 +274,48 @@ describe('rosy cheeks', () => {
     }
   });
 });
+
+describe('the nose in side view', () => {
+  const countOf = async (phi: number, face: 'oval' | 'triangular' = 'oval', nose = 0.5): Promise<number> => {
+    const { drawNose } = await import('./render/character');
+    const g = new Graphics();
+    drawNose(g, 0xffd9b8, phi, nose, face);
+    return (g as unknown as { context: { instructions: unknown[] } }).context.instructions.length;
+  };
+  it('shows the same from both sides and at exactly side-on, whatever rounding does to the angle', async () => {
+    const { noseShowing } = await import('./features');
+    for (const p of [Math.PI / 2, (3 * Math.PI) / 2, -Math.PI / 2, 5 * Math.PI / 2, 1.5707963267948966, 4.71238898038469])
+      for (const jitter of [0, 1e-15, -1e-15, 1e-12, -1e-12, 1e-9, -1e-9]) {
+        expect(noseShowing(p + jitter)).toBeCloseTo(1, 6);
+        expect(await countOf(p + jitter)).toBeGreaterThan(0);
+      }
+    expect(await countOf(Math.PI / 2)).toBe(await countOf((3 * Math.PI) / 2));
+  });
+  it('is there at every angle from the front round to just past each side, gone from behind, and never blinks in between', async () => {
+    const { noseShowing } = await import('./features');
+    let prev = 1;
+    for (let d = 0; d <= 360; d += 0.25) {
+      const phi = (d * Math.PI) / 180;
+      const show = noseShowing(phi);
+      expect(show).toBeGreaterThanOrEqual(0);
+      expect(show).toBeLessThanOrEqual(1);
+      // never an abrupt jump between neighbouring angles
+      expect(Math.abs(show - prev)).toBeLessThan(0.25);
+      prev = show;
+      const n = await countOf(phi);
+      if (d <= 90 || d >= 270) expect(n, `angle ${d}`).toBeGreaterThan(0);
+      if (d > 96 && d < 264) expect(n, `angle ${d}`).toBe(0);
+    }
+  });
+  it('is a semicircle on the face outline: its centre is on the edge, for every face shape and nose size', async () => {
+    const { drawNose } = await import('./render/character');
+    for (const face of FACE_SHAPES)
+      for (const nose of [0, 0.5, 1]) {
+        const g = new Graphics();
+        drawNose(g, 0xffd9b8, Math.PI / 2, nose, face);
+        const v = vertices(g);
+        expect(v.length).toBeGreaterThan(0);
+        expect(v.every(Number.isFinite)).toBe(true);
+      }
+  });
+});

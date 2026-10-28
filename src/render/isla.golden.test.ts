@@ -17,7 +17,7 @@ function fnv(text: string): string {
  * Version 2.0 made the face drawing depend on character features. Isla's features are the defaults, so she must draw exactly
  * the triangles she drew in version 1; the golden file holds a hash of them for two cuts, two moods and twelve views.
  */
-it('draws Isla exactly as version 1 did', () => {
+it('draws Isla exactly as version 1 did', async () => {
   const out: Record<string, string> = {};
   const state = initialState(ISLA);
   const lens = [{ front: 'short3', left: 'shoulders', right: 'shoulders', back: 'shoulders' }, { front: 'short1', left: 'bob', right: 'short2', back: 'back' }];
@@ -31,5 +31,10 @@ it('draws Isla exactly as version 1 did', () => {
         buildContextBatches((g as unknown as { context: GraphicsContext }).context, gpu as never);
         out[`${li}-${mood.tone}-${d}`] = fnv(gpu.geometryData.vertices.map((v) => v.toFixed(3)).join(','));
       }
+  // To refresh the golden file after a deliberate change to how she is drawn: run with VITE_UPDATE_GOLDEN=1 and copy the line printed.
+  if (import.meta.env.VITE_UPDATE_GOLDEN) {
+    console.log('GOLDEN ' + JSON.stringify(out));
+    return;
+  }
   expect(out).toEqual(golden);
 });

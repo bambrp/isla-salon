@@ -169,3 +169,19 @@ describe('leaving the sink', () => {
     expect(get(salon).hair.wetness).toBe(0.7);
   });
 });
+
+describe('photo booth background', () => {
+  it('only changes the scene in the photo stage, and keeps the choice through start over', async () => {
+    const { sceneFor, initialState, resetSalon, salon, setBoothBackground, setStage } = await import('./state');
+    expect(sceneFor('photo', 'beach')).toBe('beach');
+    expect(sceneFor('photo', 'salon')).toBe('mirror');
+    expect(sceneFor('cut', 'beach')).toBe('mirror');
+    expect(sceneFor('wash', 'forest')).toBe('sink');
+    expect(initialState().booth).toBe('salon');
+    salon.set(initialState());
+    setStage('photo');
+    setBoothBackground('city');
+    resetSalon();
+    expect(get(salon).booth).toBe('city');
+  });
+});

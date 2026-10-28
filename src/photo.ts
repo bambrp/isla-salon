@@ -4,11 +4,11 @@ import type { View } from './state';
 export const PHOTO_WIDTH = 1080;
 export const PHOTO_HEIGHT = 1350;
 
-/** A file name such as isla-front-2026-10-21-0730.png. */
-export function photoName(view: View, when: Date = new Date()): string {
+/** A file name such as isla-front-beach-2026-10-21-0730.png: who, which view, which background, and when. */
+export function photoName(who: string, view: View, background: string, when: Date = new Date()): string {
   const p = (n: number) => String(n).padStart(2, '0');
   const day = `${when.getFullYear()}-${p(when.getMonth() + 1)}-${p(when.getDate())}`;
-  return `isla-${view}-${day}-${p(when.getHours())}${p(when.getMinutes())}.png`;
+  return `${who}-${view}-${background}-${day}-${p(when.getHours())}${p(when.getMinutes())}.png`;
 }
 
 /** The parts of the browser a save needs, so the logic can be tested without one. */

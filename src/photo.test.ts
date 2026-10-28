@@ -27,8 +27,8 @@ describe('photo', () => {
   });
 
   it('names the file with the view and the time', () => {
-    expect(photoName('front', new Date(2026, 9, 21, 7, 5))).toBe('isla-front-2026-10-21-0705.png');
-    expect(photoName('left', new Date(2026, 11, 3, 23, 59))).toBe('isla-left-2026-12-03-2359.png');
+    expect(photoName('isla', 'front', 'salon', new Date(2026, 9, 21, 7, 5))).toBe('isla-front-salon-2026-10-21-0705.png');
+    expect(photoName('kenji', 'left', 'beach', new Date(2026, 11, 3, 23, 59))).toBe('kenji-left-beach-2026-12-03-2359.png');
   });
 
   it('spots iPhones, iPads and iPads posing as Macs, but not other devices', () => {

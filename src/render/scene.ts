@@ -5,7 +5,8 @@ import { PHOTO_HEIGHT, PHOTO_WIDTH } from '../photo';
 import { STAGES, VIEWS, commitWash, cutSwipe, hairPosition, sceneFor, setShine, washLevels, waterRunning, type Region, type SalonState, type Stage } from '../state';
 import { playBoing, playPat, playSnip, playSparkle, playSqueak, playSpray, playSquirt, updateWashSound, type WashSound } from '../audio';
 import { REGION_AZIMUTH, SWIPES_TO_CUT, movingRegions, positionsOf, regionOfAzimuth, toolFor, type CutPlan } from '../cut';
-import { drawBackdrop } from './backdrop';
+import { drawBackdrop, type SceneName } from './backdrop';
+import { BOOTH_BACKGROUNDS, type BoothBackground } from './booth';
 import { drawCharacter } from './character';
 import { browLift } from '../features';
 import { COLOUR_FADE_SECONDS, ColourFade } from './colourFade';
@@ -147,7 +148,8 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
   app.stage.addChild(world);
 
   let state: SalonState | undefined;
-  let drawnScene: 'sink' | 'mirror' | undefined;
+  let drawnScene: SceneName | undefined;
+  let drawnBooth: BoothBackground | undefined;
   let drawnStage: Stage | undefined;
   let panning: gsap.core.Tween | undefined;
   let destroyed = false;
@@ -746,7 +748,7 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
   }
 
   /** Slide the new stage's backdrop in from the side (right when moving forward through the tabs, left when back). */
-  function panBackdrop(scene: 'sink' | 'mirror', direction: 1 | -1): void {
+  function panBackdrop(scene: SceneName, direction: 1 | -1): void {
     finishPan();
     if (prefersReducedMotion()) {
       drawBackdrop(backdrop, scene);
@@ -789,14 +791,18 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
     if (destroyed) return;
     state = next;
 
-    const scene = sceneFor(next.stage);
-    if (drawnStage === undefined) {
+    const scene = sceneFor(next.stage, next.booth);
+    if (drawnStage === undefined || drawnBooth === undefined) {
       drawBackdrop(backdrop, scene);
     } else if (next.stage !== drawnStage) {
       panBackdrop(scene, STAGES.indexOf(next.stage) > STAGES.indexOf(drawnStage) ? 1 : -1);
+    } else if (scene !== drawnScene) {
+      // A new background in the photo booth slides in the same way, in the order the buttons are laid out.
+      panBackdrop(scene, BOOTH_BACKGROUNDS.indexOf(next.booth) > BOOTH_BACKGROUNDS.indexOf(drawnBooth) ? 1 : -1);
     }
     drawnScene = scene;
     drawnStage = next.stage;
+    drawnBooth = next.booth;
 
     // A reset puts everything back at once, with no scissors and no easing.
     if (next.epoch !== epoch) {

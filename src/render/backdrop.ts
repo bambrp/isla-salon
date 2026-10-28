@@ -2,6 +2,7 @@ import type { Graphics } from 'pixi.js';
 import { INK, OUTLINE } from './style';
 import { BOTTLE_SCALE, DIAL, TAP, SHELF_BOARD, SHELF_PRODUCTS, bottleHeight } from './sinkLayout';
 import { drawHolder } from './sprayer';
+import { drawBoothBackground, type BoothBackground } from './booth';
 import type { Product } from './wash';
 import {
   bottle,
@@ -181,8 +182,12 @@ function halfDisc(cx: number, cy: number, r: number): number[] {
   return out;
 }
 
-export function drawBackdrop(g: Graphics, scene: 'sink' | 'mirror'): void {
+/** Every backdrop the game can show: the sink, the salon mirror, and the photo booth's other four. */
+export type SceneName = 'sink' | 'mirror' | Exclude<BoothBackground, 'salon'>;
+
+export function drawBackdrop(g: Graphics, scene: SceneName): void {
   g.clear();
   if (scene === 'sink') drawSink(g);
-  else drawMirror(g);
+  else if (scene === 'mirror') drawMirror(g);
+  else drawBoothBackground(g, scene);
 }

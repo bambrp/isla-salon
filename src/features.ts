@@ -107,6 +107,15 @@ export function noseScale(nose: number): number {
   return n <= 0.5 ? 0.65 + 0.7 * n : 1 + (NOSE_SCALE_MAX - 1) * (n - 0.5) * 2;
 }
 
+/**
+ * How much of the nose shows at view angle phi (0 front, pi/2 and 3pi/2 the two profiles, pi from behind): fully from the
+ * front and in both profiles, then fading out over the few degrees past a profile while it turns behind the head.
+ * Worked out from cos(phi) with a margin, never from a depth that is zero (and so a coin toss) in exact profile.
+ */
+export function noseShowing(phi: number): number {
+  return Math.min(1, Math.max(0, (Math.cos(phi) + 0.08) / 0.08));
+}
+
 /** How far the nose stands out from the face, relative to the default (px of depth); the large end stands out 75 per cent further. */
 export function noseStandOut(nose: number): number {
   const n = clamp01(nose);
