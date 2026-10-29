@@ -61,7 +61,7 @@ Hair can be one colour, split left and right, or ombre. The rules live in `src/r
   vary by position, size and colour rather than by new art.
 - Wash scene: tiled wall, sink, tap, potted plants. Salon scene (Character, Colour, Cut, Style and the booth's Salon
   background): mirror, two shelves of tools, potted plants.
-- Photo booth backgrounds (`src/render/booth.ts`): Beach, City, Forest, Clouds and Brick (a vintage brick wall with a poster, enamel sign and gas lamp), drawn like everything else with flat
+- Photo booth backgrounds (`src/render/booth.ts`): Beach, City, Forest, Clouds, Brick and Clear (a screen-only chequerboard that the photo leaves out, so it keeps its alpha channel) (a vintage brick wall with a poster, enamel sign and gas lamp), drawn like everything else with flat
   colour bands and the thick ink outline (`OUTLINE`). They are drawn oversized so any screen shape is covered, keep
   the head and gown clear, and use point lists for arcs (never a repeated point; see the stray-lines lesson in plan.md).
 

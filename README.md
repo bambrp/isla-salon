@@ -2,7 +2,7 @@
 
 A casual haircut game for phones, tablets and computers. Choose one of nine characters (or change their face, skin,
 brows and hair), then wash, colour, cut and style their hair, turn them round to see every side, and take a photo in
-the photo booth against six backgrounds: Salon, Beach, City, Forest, Clouds and Brick. Everything is drawn in code, there is no server, and once loaded it works offline.
+the photo booth against seven backgrounds: Salon, Beach, City, Forest, Clouds, Brick and Clear (a transparent PNG for pasting into your own pictures). Everything is drawn in code, there is no server, and once loaded it works offline.
 
 Left and right in the game, the code and these notes are always the player's: the way you see the screen.
 
@@ -11,7 +11,7 @@ Left and right in the game, the code and these notes are always the player's: th
 ```
 npm install
 npm run dev       # play it while editing, at the address shown
-npm test          # 277 unit tests
+npm test          # 278 unit tests
 npm run check     # type check
 npm run build     # type check, then the finished game in dist/
 npm run preview   # try the finished game locally

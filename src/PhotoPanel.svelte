@@ -13,6 +13,7 @@
     city: 'linear-gradient(#9cd9ff 0 40%, #ff9eb5 40% 55%, #b69cff 55% 80%, #6b7385 80%)',
     forest: 'linear-gradient(#d0f09a 0 35%, #3fae57 35% 75%, #6fc24b 75%)',
     clouds: 'linear-gradient(#5ab2fa 0 45%, #9fd5fd 45% 75%, #fff 75%)',
+    transparent: 'conic-gradient(#d3cddc 25%, #f4f1f8 0 50%, #d3cddc 0 75%, #f4f1f8 0) 0 0 / 10px 10px',
     brick: 'linear-gradient(#c4573d 0 30%, #e3cfae 30% 36%, #b34a35 36% 66%, #e3cfae 66% 72%, #d06a45 72%)',
   };
 </script>
@@ -26,6 +27,7 @@
         aria-checked={$salon.booth === bg}
         class="back"
         class:on={$salon.booth === bg}
+        aria-label={bg === 'transparent' ? 'Transparent' : BOOTH_LABELS[bg]}
         on:click={() => setBoothBackground(bg)}
       >
         <span class="thumb" style="background: {THUMBS[bg]}" aria-hidden="true"></span>
@@ -43,6 +45,9 @@
   .photo {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto auto;
+    height: 100%;
+    box-sizing: border-box;
     gap: 10px;
     justify-items: center;
     padding-top: 6px;
@@ -54,6 +59,9 @@
     gap: 6px;
     width: 100%;
     max-width: 30rem;
+    align-content: start;
+    overflow-y: auto;
+    padding: 2px 2px 4px;
   }
 
   .back {

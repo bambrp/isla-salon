@@ -9,9 +9,9 @@ import { INK, OUTLINE, shade } from './style';
  * and no outline repeats a point, because phone graphics chips draw broken vertices as stray lines.
  */
 
-export type BoothBackground = 'salon' | 'beach' | 'city' | 'forest' | 'clouds' | 'brick';
-export const BOOTH_BACKGROUNDS: readonly BoothBackground[] = ['salon', 'beach', 'city', 'forest', 'clouds', 'brick'];
-export const BOOTH_LABELS: Record<BoothBackground, string> = { salon: 'Salon', beach: 'Beach', city: 'City', forest: 'Forest', clouds: 'Clouds', brick: 'Brick' };
+export type BoothBackground = 'salon' | 'beach' | 'city' | 'forest' | 'clouds' | 'brick' | 'transparent';
+export const BOOTH_BACKGROUNDS: readonly BoothBackground[] = ['salon', 'beach', 'city', 'forest', 'clouds', 'brick', 'transparent'];
+export const BOOTH_LABELS: Record<BoothBackground, string> = { salon: 'Salon', beach: 'Beach', city: 'City', forest: 'Forest', clouds: 'Clouds', brick: 'Brick', transparent: 'Clear' };
 
 const X0 = -600;
 const X1 = 1000;
@@ -374,10 +374,27 @@ function roundPoints(cx: number, cy: number, rx: number, ry: number, steps: numb
   return out;
 }
 
+/**
+ * The Transparent background as seen on screen: a grey and white chequerboard, the usual sign of "nothing here". The photo
+ * leaves it out (the scene hides it while the photo is taken), so the saved picture has no background at all.
+ */
+function drawChecker(g: Graphics): void {
+  const SQ = 24;
+  g.rect(-400, -300, 1200, 1100).fill(0xf4f1f8);
+  for (let row = 0; row * SQ < 1100; row++)
+    for (let col = 0; col * SQ < 1200; col++) if ((row + col) % 2 === 0) g.rect(-400 + col * SQ, -300 + row * SQ, SQ, SQ).fill(0xd3cddc);
+  // Beyond the area above (never normally in view) keep to the light colour so no gap shows.
+  g.rect(X0, Y0, X1 - X0, -300 - Y0).fill(0xf4f1f8);
+  g.rect(X0, 800, X1 - X0, Y1 - 800).fill(0xf4f1f8);
+  g.rect(X0, -300, -400 - X0, 1100).fill(0xf4f1f8);
+  g.rect(800, -300, X1 - 800, 1100).fill(0xf4f1f8);
+}
+
 export function drawBoothBackground(g: Graphics, background: Exclude<BoothBackground, 'salon'>): void {
   if (background === 'beach') drawBeach(g);
   else if (background === 'city') drawCity(g);
   else if (background === 'forest') drawForest(g);
   else if (background === 'brick') drawBrick(g);
+  else if (background === 'transparent') drawChecker(g);
   else drawClouds(g);
 }

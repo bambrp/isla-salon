@@ -968,7 +968,8 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
     if (destroyed) throw new Error('The salon is closed');
     finishPan();
     const target = RenderTexture.create({ width: PHOTO_WIDTH, height: PHOTO_HEIGHT, resolution: 1, antialias: true });
-    const was = { scale: world.scale.x, x: world.x, y: world.y, blink: eyes.blink, fx: fx.visible, cy: character.y, eyeTimer, blobAge };
+    const clear = drawnScene === 'transparent';
+    const was = { backdrop: backdrop.visible, scale: world.scale.x, x: world.x, y: world.y, blink: eyes.blink, fx: fx.visible, cy: character.y, eyeTimer, blobAge };
     try {
       // Show her as she'd pose: eyes open, no breath, no markers, no scissors or sparks.
       eyes.blink = 0;
@@ -977,10 +978,12 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
       posing = true;
       character.y = washG.y = 0;
       fx.visible = false;
+      // The Transparent background is a screen-only chequerboard: the photo leaves it out and keeps the alpha channel.
+      if (clear) backdrop.visible = false;
       draw();
       world.scale.set(PHOTO_WIDTH / DESIGN_W);
       world.position.set(0, 0);
-      app.renderer.render({ container: world, target, clear: true, clearColor: [1, 1, 1, 1] });
+      app.renderer.render({ container: world, target, clear: true, clearColor: clear ? [0, 0, 0, 0] : [1, 1, 1, 1] });
       const canvas = app.renderer.extract.canvas({ target, resolution: 1 }) as HTMLCanvasElement;
       return await new Promise<Blob>((resolve, reject) =>
         canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('The photo could not be made'))), 'image/png'),
@@ -993,6 +996,7 @@ export async function createScene(host: HTMLElement): Promise<SceneHandle> {
       posing = false;
       blobAge = was.blobAge;
       fx.visible = was.fx;
+      backdrop.visible = was.backdrop;
       character.y = washG.y = was.cy;
       target.destroy(true);
       draw();

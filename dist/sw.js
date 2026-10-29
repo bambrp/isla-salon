@@ -1,6 +1,6 @@
 /* Isla's Salon service worker. The build fills in VERSION and FILES (see vite.config.ts). */
-const VERSION = '4df2b6d03cc5';
-const FILES = ["./","apple-touch-icon.png","assets/CanvasPool-CkeNae42.js","assets/RenderTargetSystem-K7_PPJk-.js","assets/browserAll-CdwbYUo8.js","assets/getTexelRangeRects-DlBU4lqS.js","assets/index-BHY_7qvN.js","assets/index-C71YZpnH.css","assets/init-DibSxOZR.js","assets/webworkerAll-CVm7sVCz.js","icon-192.png","icon-512.png","icon-maskable-512.png","icon.svg","index.html","manifest.webmanifest"];
+const VERSION = '4b436cfbcd95';
+const FILES = ["./","apple-touch-icon.png","assets/CanvasPool-CkeNae42.js","assets/RenderTargetSystem-K7_PPJk-.js","assets/browserAll-CJCXWasl.js","assets/getTexelRangeRects-DlBU4lqS.js","assets/index-C71YZpnH.css","assets/index-H15Ed3rL.js","assets/init-Bd1d0L9L.js","assets/webworkerAll-C-f8Sh5c.js","icon-192.png","icon-512.png","icon-maskable-512.png","icon.svg","index.html","manifest.webmanifest"];
 const CACHE = `islas-salon-${VERSION}`;
 
 self.addEventListener('install', (event) => {

@@ -175,6 +175,7 @@ describe('photo booth background', () => {
     const { sceneFor, initialState, resetSalon, salon, setBoothBackground, setStage } = await import('./state');
     expect(sceneFor('photo', 'beach')).toBe('beach');
     expect(sceneFor('photo', 'salon')).toBe('mirror');
+    expect(sceneFor('photo', 'transparent')).toBe('transparent');
     expect(sceneFor('cut', 'beach')).toBe('mirror');
     expect(sceneFor('wash', 'forest')).toBe('sink');
     expect(initialState().booth).toBe('salon');
